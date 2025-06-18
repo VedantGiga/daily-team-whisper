@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Router, Route, Switch } from "wouter";
 import { Toaster as HotToaster } from 'react-hot-toast';
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -53,35 +53,32 @@ const App = () => (
             },
           }}
         />
-        <BrowserRouter>
+        <Router>
           <NetworkStatus />
-          <Routes>
+          <Switch>
             {/* Public Routes */}
-            <Route path="/" element={<Landing />} />
-            <Route path="/privacy" element={<Privacy />} />
-            <Route path="/terms" element={<Terms />} />
-            <Route path="/contact" element={<Contact />} />
+            <Route path="/" component={Landing} />
+            <Route path="/privacy" component={Privacy} />
+            <Route path="/terms" component={Terms} />
+            <Route path="/contact" component={Contact} />
             
             {/* Auth Routes */}
-            <Route path="/auth/login" element={<Login />} />
-            <Route path="/auth/signup" element={<Signup />} />
-            <Route path="/auth/forgot-password" element={<ForgotPassword />} />
-            <Route path="/auth/verify-email" element={<VerifyEmail />} />
+            <Route path="/auth/login" component={Login} />
+            <Route path="/auth/signup" component={Signup} />
+            <Route path="/auth/forgot-password" component={ForgotPassword} />
+            <Route path="/auth/verify-email" component={VerifyEmail} />
             
             {/* Protected Routes */}
-            <Route 
-              path="/dashboard" 
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              } 
-            />
+            <Route path="/dashboard">
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            </Route>
             
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
+            {/* Catch-all route */}
+            <Route component={NotFound} />
+          </Switch>
+        </Router>
       </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>

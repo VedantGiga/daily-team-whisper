@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,10 +18,9 @@ const Login = () => {
   const [error, setError] = useState('');
 
   const { login, loginWithGoogle } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
+  const [, setLocation] = useLocation();
 
-  const from = location.state?.from?.pathname || '/dashboard';
+  const from = '/dashboard';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

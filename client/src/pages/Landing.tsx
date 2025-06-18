@@ -24,7 +24,7 @@ import {
   Lock,
   Rocket
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "wouter";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 
