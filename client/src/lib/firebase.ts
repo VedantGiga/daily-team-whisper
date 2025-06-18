@@ -1,7 +1,5 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
-import { getFirestore, connectFirestoreEmulator, enableNetwork, disableNetwork } from 'firebase/firestore';
-import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyCqdc8qN-F_5na8OxYozNU_T0LDvPoYu80",
@@ -18,36 +16,14 @@ const app = initializeApp(firebaseConfig);
 
 // Initialize Firebase services
 export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const functions = getFunctions(app);
-
-// Enable network for Firestore
-enableNetwork(db).catch((error) => {
-  console.warn('Failed to enable Firestore network:', error);
-});
 
 // Connect to emulators in development (only if explicitly enabled)
 if (import.meta.env.DEV && import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true') {
   try {
-    // Only connect if not already connected
-    if (!auth.config.emulator) {
-      connectAuthEmulator(auth, "http://localhost:9099", { disableWarnings: true });
-      console.log("Connected to Firebase Auth Emulator");
-    }
-    
-    // Check if Firestore emulator is not already connected
-    if (!(db as any)._delegate._databaseId.projectId.includes('localhost')) {
-      connectFirestoreEmulator(db, 'localhost', 8080);
-      console.log("Connected to Firestore Emulator");
-    }
-    
-    // Check if Functions emulator is not already connected
-    if (!functions.customDomain) {
-      connectFunctionsEmulator(functions, "localhost", 5001);
-      console.log("Connected to Functions Emulator");
-    }
+    connectAuthEmulator(auth, "http://localhost:9099", { disableWarnings: true });
+    console.log("Connected to Firebase Auth Emulator");
   } catch (error) {
-    console.warn("Firebase emulators not available:", error);
+    console.warn("Firebase Auth emulator not available:", error);
   }
 }
 

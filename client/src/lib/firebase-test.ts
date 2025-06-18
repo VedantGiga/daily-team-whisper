@@ -1,4 +1,4 @@
-import { auth, db } from './firebase';
+import { auth } from './firebase';
 
 export const testFirebaseConnection = async () => {
   try {
@@ -8,16 +8,7 @@ export const testFirebaseConnection = async () => {
     console.log('Auth instance:', auth);
     console.log('Auth config:', auth.config);
     
-    // Test Firestore connection
-    console.log('Firestore instance:', db);
-    
-    // Check if we're connected to emulators
-    if (auth.config.emulator) {
-      console.log('Connected to Auth Emulator:', auth.config.emulator);
-    } else {
-      console.log('Using production Firebase Auth');
-    }
-    
+    console.log('Using production Firebase Auth');
     console.log('Firebase connection test completed successfully');
     return true;
   } catch (error) {
