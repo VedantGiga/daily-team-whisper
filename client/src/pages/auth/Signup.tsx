@@ -85,7 +85,9 @@ const Signup = () => {
       setError('');
       setLoading(true);
       await loginWithGoogle();
-      setLocation('/dashboard');
+      setTimeout(() => {
+        setLocation('/dashboard');
+      }, 100);
     } catch (error: any) {
       setError(error.message);
     } finally {

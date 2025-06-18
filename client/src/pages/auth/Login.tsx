@@ -20,8 +20,6 @@ const Login = () => {
   const { login, loginWithGoogle } = useAuth();
   const [, setLocation] = useLocation();
 
-  const from = '/dashboard';
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -34,7 +32,10 @@ const Login = () => {
       setError('');
       setLoading(true);
       await login(email, password);
-      setLocation(from);
+      // Add a small delay to ensure auth state is updated
+      setTimeout(() => {
+        setLocation('/dashboard');
+      }, 100);
     } catch (error: any) {
       setError(error.message);
     } finally {
@@ -47,7 +48,10 @@ const Login = () => {
       setError('');
       setLoading(true);
       await loginWithGoogle();
-      setLocation(from);
+      // Add a small delay to ensure auth state is updated
+      setTimeout(() => {
+        setLocation('/dashboard');
+      }, 100);
     } catch (error: any) {
       setError(error.message);
     } finally {
