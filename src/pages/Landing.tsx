@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,9 +16,17 @@ import {
   Users,
   Clock,
   Bot,
-  Sparkles
+  Sparkles,
+  Star,
+  TrendingUp,
+  Globe,
+  Smartphone,
+  Lock,
+  Rocket
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { motion, useScroll, useTransform } from "framer-motion";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Landing = () => {
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -100,7 +108,12 @@ const Landing = () => {
             <Link to="/contact" className="text-muted-foreground hover:text-foreground transition-colors">
               Contact Us
             </Link>
-            <Link to="/dashboard">
+            <Link to="/auth/login">
+              <Button variant="ghost" className="text-foreground">
+                Sign In
+              </Button>
+            </Link>
+            <Link to="/auth/signup">
               <Button className="gradient-primary text-white">
                 Get Started
               </Button>
@@ -124,7 +137,7 @@ const Landing = () => {
             AutoBrief automatically generates intelligent daily summaries of your work across GitHub, Slack, Jira, Notion, and Google Calendar. Keep your team in sync with AI-powered insights delivered to your inbox every evening.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Link to="/dashboard">
+            <Link to="/auth/signup">
               <Button size="lg" className="gradient-primary text-white px-8 hover-scale">
                 Start Free Trial
                 <ArrowRight className="h-5 w-5 ml-2" />
@@ -226,7 +239,7 @@ const Landing = () => {
             Join thousands of remote teams who trust AutoBrief to keep them connected and productive.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Link to="/dashboard">
+            <Link to="/auth/signup">
               <Button size="lg" variant="secondary" className="bg-white text-purple-600 hover:bg-gray-100 px-8">
                 Start Free Trial
                 <ArrowRight className="h-5 w-5 ml-2" />
