@@ -1,5 +1,4 @@
 import { auth, db } from './firebase';
-import { connectivityState } from 'firebase/firestore';
 
 export const testFirebaseConnection = async () => {
   try {
@@ -19,12 +18,7 @@ export const testFirebaseConnection = async () => {
       console.log('Using production Firebase Auth');
     }
     
-    // Test network connectivity
-    const unsubscribe = connectivityState(db, (state) => {
-      console.log('Firestore connectivity state:', state);
-      unsubscribe();
-    });
-    
+    console.log('Firebase connection test completed successfully');
     return true;
   } catch (error) {
     console.error('Firebase connection test failed:', error);
