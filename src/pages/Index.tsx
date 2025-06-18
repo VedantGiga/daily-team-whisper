@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,11 +32,11 @@ const Index = () => {
   };
 
   const integrations = [
-    { name: "GitHub", icon: Github, status: "connected", lastSync: "2 hours ago", color: "bg-gray-900" },
-    { name: "Slack", icon: Mail, status: "disconnected", lastSync: "Never", color: "bg-purple-600" },
-    { name: "Google Calendar", icon: Calendar, status: "connected", lastSync: "1 hour ago", color: "bg-blue-600" },
-    { name: "Jira", icon: FileText, status: "disconnected", lastSync: "Never", color: "bg-blue-500" },
-    { name: "Notion", icon: FileText, status: "connected", lastSync: "3 hours ago", color: "bg-black" },
+    { name: "GitHub", icon: Github, status: "connected" as const, lastSync: "2 hours ago", color: "bg-gray-900" },
+    { name: "Slack", icon: Mail, status: "disconnected" as const, lastSync: "Never", color: "bg-purple-600" },
+    { name: "Google Calendar", icon: Calendar, status: "connected" as const, lastSync: "1 hour ago", color: "bg-blue-600" },
+    { name: "Jira", icon: FileText, status: "disconnected" as const, lastSync: "Never", color: "bg-blue-500" },
+    { name: "Notion", icon: FileText, status: "connected" as const, lastSync: "3 hours ago", color: "bg-black" },
   ];
 
   const todaySummary = {
