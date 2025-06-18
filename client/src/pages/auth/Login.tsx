@@ -34,7 +34,7 @@ const Login = () => {
       setError('');
       setLoading(true);
       await login(email, password);
-      navigate(from, { replace: true });
+      setLocation(from);
     } catch (error: any) {
       setError(error.message);
     } finally {
@@ -47,7 +47,7 @@ const Login = () => {
       setError('');
       setLoading(true);
       await loginWithGoogle();
-      navigate(from, { replace: true });
+      setLocation(from);
     } catch (error: any) {
       setError(error.message);
     } finally {

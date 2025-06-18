@@ -1,5 +1,5 @@
-import React from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 
@@ -13,7 +13,15 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requireEmailVerification = false 
 }) => {
   const { currentUser, loading } = useAuth();
-  const location = useLocation();
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (!loading && !currentUser) {
+      setLocation('/auth/login');
+    } else if (!loading && requireEmailVerification && currentUser && !currentUser.emailVerified) {
+      setLocation('/auth/verify-email');
+    }
+  }, [currentUser, loading, requireEmailVerification, setLocation]);
 
   if (loading) {
     return (
@@ -27,12 +35,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   if (!currentUser) {
-    // Redirect to login page with return url
-    return <Navigate to="/auth/login" state={{ from: location }} replace />;
+    return null; // Will redirect via useEffect
   }
 
   if (requireEmailVerification && !currentUser.emailVerified) {
-    return <Navigate to="/auth/verify-email" replace />;
+    return null; // Will redirect via useEffect
   }
 
   return <>{children}</>;

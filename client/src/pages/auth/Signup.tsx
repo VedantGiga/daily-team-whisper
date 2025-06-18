@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,7 +25,7 @@ const Signup = () => {
   const [error, setError] = useState('');
 
   const { signup, loginWithGoogle } = useAuth();
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
@@ -72,7 +72,7 @@ const Signup = () => {
       setError('');
       setLoading(true);
       await signup(formData.email, formData.password, formData.displayName);
-      navigate('/auth/verify-email');
+      setLocation('/auth/verify-email');
     } catch (error: any) {
       setError(error.message);
     } finally {
@@ -85,7 +85,7 @@ const Signup = () => {
       setError('');
       setLoading(true);
       await loginWithGoogle();
-      navigate('/dashboard');
+      setLocation('/dashboard');
     } catch (error: any) {
       setError(error.message);
     } finally {
