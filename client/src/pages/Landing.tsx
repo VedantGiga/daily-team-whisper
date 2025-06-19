@@ -102,7 +102,7 @@ const Landing = () => {
             <img 
               src={autoBriefLogo} 
               alt="AutoBrief" 
-              className="h-28 w-48 object-contain cursor-pointer hover:opacity-80 transition-opacity"
+              className="h-32 w-52 object-contain cursor-pointer hover:opacity-80 transition-opacity filter dark:brightness-0 dark:invert"
             />
           </Link>
           <div className="flex items-center gap-6">
@@ -277,7 +277,7 @@ const Landing = () => {
                   <img 
                     src={autoBriefLogo} 
                     alt="AutoBrief" 
-                    className="h-28 w-48 object-contain cursor-pointer hover:opacity-80 transition-opacity"
+                    className="h-32 w-52 object-contain cursor-pointer hover:opacity-80 transition-opacity filter dark:brightness-0 dark:invert"
                   />
                 </Link>
               </div>
