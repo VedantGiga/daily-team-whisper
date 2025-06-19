@@ -48,7 +48,7 @@ export const DashboardHeader = ({ onThemeToggle, isDarkMode }: DashboardHeaderPr
             <img 
               src={autoBriefLogo} 
               alt="AutoBrief" 
-              className="h-8 w-auto object-contain"
+              className="h-12 w-auto object-contain"
             />
           </div>
 

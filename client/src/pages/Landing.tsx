@@ -95,7 +95,7 @@ const Landing = () => {
             <img 
               src={autoBriefLogo} 
               alt="AutoBrief" 
-              className="h-8 w-auto object-contain"
+              className="h-12 w-auto object-contain"
             />
           </div>
           <div className="flex items-center gap-6">
@@ -261,7 +261,7 @@ const Landing = () => {
                 <img 
                   src={autoBriefLogo} 
                   alt="AutoBrief" 
-                  className="h-8 w-auto object-contain"
+                  className="h-12 w-auto object-contain"
                 />
               </div>
               <p className="text-muted-foreground text-sm">
