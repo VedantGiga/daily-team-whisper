@@ -9,9 +9,10 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
-import { Moon, Sun, User, Settings, Mail, BarChart3, LogOut } from "lucide-react";
+import { Moon, Sun, User, Settings, Mail, LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { NetworkStatusBadge } from "@/components/NetworkStatus";
+import autoBriefLogo from "@/assets/autobrief-logo.jpg";
 
 interface DashboardHeaderProps {
   onThemeToggle: () => void;
@@ -44,11 +45,13 @@ export const DashboardHeader = ({ onThemeToggle, isDarkMode }: DashboardHeaderPr
         <div className="flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center">
-              <BarChart3 className="h-5 w-5 text-white" />
-            </div>
+            <img 
+              src={autoBriefLogo} 
+              alt="AutoBrief AI" 
+              className="w-10 h-10 rounded-lg object-contain"
+            />
             <div>
-              <h1 className="text-xl font-bold">AutoBrief</h1>
+              <h1 className="text-xl font-bold">AutoBrief AI</h1>
               <p className="text-xs text-muted-foreground">AI Work Summaries</p>
             </div>
           </div>

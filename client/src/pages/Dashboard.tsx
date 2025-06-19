@@ -45,7 +45,7 @@ const Dashboard = () => {
     tasksCompleted: 8,
     blockers: 2,
     meetings: 4,
-    summary: "Productive day focusing on the AutoBrief integration features. Completed the GitHub API setup and made significant progress on the dashboard UI. Two blockers identified around rate limiting that need attention tomorrow."
+    summary: "Productive day focusing on the AutoBrief AI integration features. Completed the GitHub API setup and made significant progress on the dashboard UI. Two blockers identified around rate limiting that need attention tomorrow."
   };
 
   return (
@@ -56,7 +56,7 @@ const Dashboard = () => {
         {/* Welcome Section */}
         <div className="text-center space-y-4">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-            Welcome to AutoBrief
+            Welcome to AutoBrief AI
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             Your AI-powered work summary tool that keeps remote teams in sync with automated daily briefs.
@@ -138,7 +138,7 @@ const Dashboard = () => {
           <CardContent className="p-8 text-center">
             <h3 className="text-2xl font-bold mb-4">Ready to get your first AI summary?</h3>
             <p className="text-purple-100 mb-6">
-              Connect your tools and let AutoBrief generate your daily work summary automatically.
+              Connect your tools and let AutoBrief AI generate your daily work summary automatically.
             </p>
             <Button size="lg" variant="secondary" className="bg-white text-purple-600 hover:bg-gray-100">
               Set up Integrations

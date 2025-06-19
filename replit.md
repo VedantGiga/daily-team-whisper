@@ -1,4 +1,4 @@
-# AutoBrief - AI-Powered Work Summary Platform
+# AutoBrief AI - AI-Powered Work Summary Platform
 
 ## Overview
 

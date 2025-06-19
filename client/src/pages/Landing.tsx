@@ -27,6 +27,7 @@ import {
 import { Link } from "wouter";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
+import autoBriefLogo from "@/assets/autobrief-logo.jpg";
 
 const Landing = () => {
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -91,11 +92,13 @@ const Landing = () => {
       <header className="container mx-auto px-6 py-4">
         <nav className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
-              <Sparkles className="h-5 w-5 text-white" />
-            </div>
+            <img 
+              src={autoBriefLogo} 
+              alt="AutoBrief AI" 
+              className="w-8 h-8 rounded-lg object-contain"
+            />
             <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-              AutoBrief
+              AutoBrief AI
             </span>
           </div>
           <div className="flex items-center gap-6">
@@ -134,7 +137,7 @@ const Landing = () => {
             <span className="text-foreground">in Your Remote Work</span>
           </h1>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-8 leading-relaxed">
-            AutoBrief automatically generates intelligent daily summaries of your work across GitHub, Slack, Jira, Notion, and Google Calendar. Keep your team in sync with AI-powered insights delivered to your inbox every evening.
+            AutoBrief AI automatically generates intelligent daily summaries of your work across GitHub, Slack, Jira, Notion, and Google Calendar. Keep your team in sync with AI-powered insights delivered to your inbox every evening.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Link to="/auth/signup">
@@ -154,7 +157,7 @@ const Landing = () => {
       <section className="container mx-auto px-6 py-16">
         <div className="text-center mb-16 animate-fade-in">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Why Teams Love AutoBrief
+            Why Teams Love AutoBrief AI
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             Streamline your remote work with intelligent automation that saves time and improves team communication.
@@ -258,11 +261,13 @@ const Landing = () => {
           <div className="grid md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
-                  <Sparkles className="h-5 w-5 text-white" />
-                </div>
+                <img 
+                  src={autoBriefLogo} 
+                  alt="AutoBrief AI" 
+                  className="w-8 h-8 rounded-lg object-contain"
+                />
                 <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                  AutoBrief
+                  AutoBrief AI
                 </span>
               </div>
               <p className="text-muted-foreground text-sm">
