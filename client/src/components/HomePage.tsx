@@ -17,8 +17,8 @@ const HomePage = () => {
     );
   }
 
-  // If user is authenticated, show dashboard; otherwise show landing page
-  return currentUser ? <Dashboard /> : <Landing />;
+  // Always show landing page - authentication persistence is handled by context
+  return <Landing />;
 };
 
 export default HomePage;
