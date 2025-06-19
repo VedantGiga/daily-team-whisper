@@ -33,6 +33,7 @@ import autoBriefLogo from "@/assets/autobrief-logo.png";
 
 const Landing = () => {
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const { currentUser, logout } = useAuth();
 
   useEffect(() => {
     const isDark = document.documentElement.classList.contains('dark');
@@ -123,16 +124,35 @@ const Landing = () => {
             >
               {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
-            <Link to="/auth/login">
-              <Button variant="ghost" className="text-foreground">
-                Sign In
-              </Button>
-            </Link>
-            <Link to="/auth/signup">
-              <Button className="gradient-primary text-white">
-                Get Started
-              </Button>
-            </Link>
+            {currentUser ? (
+              <>
+                <Link to="/dashboard">
+                  <Button variant="ghost" className="text-foreground">
+                    Dashboard
+                  </Button>
+                </Link>
+                <Button 
+                  variant="outline" 
+                  onClick={logout}
+                  className="text-foreground"
+                >
+                  Sign Out
+                </Button>
+              </>
+            ) : (
+              <>
+                <Link to="/auth/login">
+                  <Button variant="ghost" className="text-foreground">
+                    Sign In
+                  </Button>
+                </Link>
+                <Link to="/auth/signup">
+                  <Button className="gradient-primary text-white">
+                    Get Started
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
         </nav>
       </header>

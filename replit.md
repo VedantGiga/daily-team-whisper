@@ -93,6 +93,11 @@ AutoBrief is a full-stack web application that provides AI-powered work summarie
 The application uses a monorepo structure with shared schema definitions and TypeScript configurations for consistency across frontend and backend codebases.
 
 ## Changelog
+- June 19, 2025. Migration from Replit Agent to standard Replit environment completed:
+  - Fixed authentication persistence when navigating between pages
+  - Updated landing page to show appropriate buttons for authenticated users
+  - Resolved server database import issues for clean deployment
+  - Maintained user preference for landing page with "Never miss a beat" text
 - June 19, 2025. Added comprehensive integration management system:
   - Database schema for integrations, work activities, and daily summaries
   - Backend API with OAuth flows for external service connections
