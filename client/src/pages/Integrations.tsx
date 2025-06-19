@@ -1,4 +1,5 @@
 import { IntegrationManager } from "@/components/IntegrationManager";
+import { GitHubConfigStatus } from "@/components/GitHubConfigStatus";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { useState } from "react";
 
@@ -19,7 +20,8 @@ const Integrations = () => {
     <div className="min-h-screen bg-background">
       <DashboardHeader onThemeToggle={toggleTheme} isDarkMode={isDarkMode} />
       
-      <main className="container mx-auto px-6 py-8">
+      <main className="container mx-auto px-6 py-8 space-y-8">
+        <GitHubConfigStatus />
         <IntegrationManager userId={userId} />
       </main>
     </div>

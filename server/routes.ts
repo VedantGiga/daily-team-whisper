@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { GitHubService } from "./services/githubService";
 import { 
   insertIntegrationSchema, 
   insertWorkActivitySchema, 
@@ -263,17 +264,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/integrations/:id/sync", async (req, res) => {
     try {
       const integrationId = parseInt(req.params.id);
-      const integration = await storage.updateIntegration(integrationId, {
+      const integrations = await storage.getUserIntegrations(1); // Get all integrations for demo user
+      const integration = integrations.find(i => i.id === integrationId);
+      
+      if (!integration) {
+        return res.status(404).json({ error: "Integration not found" });
+      }
+
+      // Perform actual sync based on provider
+      if (integration.provider === "github" && integration.isConnected) {
+        await GitHubService.syncUserData(integration);
+      }
+      
+      // Update lastSyncAt timestamp
+      const updatedIntegration = await storage.updateIntegration(integrationId, {
         lastSyncAt: new Date(),
       });
       
-      // Here you would implement the actual sync logic for each provider
-      // For now, we'll just update the lastSyncAt timestamp
-      
-      res.json({ success: true, lastSyncAt: integration.lastSyncAt });
+      res.json({ success: true, lastSyncAt: updatedIntegration.lastSyncAt });
     } catch (error) {
       console.error("Error syncing integration:", error);
       res.status(500).json({ error: "Failed to sync integration" });
+    }
+  });
+
+  // Get GitHub repositories for a user
+  app.get("/api/integrations/:id/github/repos", async (req, res) => {
+    try {
+      const integrationId = parseInt(req.params.id);
+      const integrations = await storage.getUserIntegrations(1);
+      const integration = integrations.find(i => i.id === integrationId);
+      
+      if (!integration || integration.provider !== "github") {
+        return res.status(404).json({ error: "GitHub integration not found" });
+      }
+
+      const repos = await GitHubService.getUserRepositories(integration);
+      res.json(repos);
+    } catch (error) {
+      console.error("Error fetching GitHub repositories:", error);
+      res.status(500).json({ error: "Failed to fetch repositories" });
+    }
+  });
+
+  // Test GitHub OAuth configuration
+  app.get("/api/integrations/github/test", async (req, res) => {
+    try {
+      const clientId = process.env.GITHUB_CLIENT_ID;
+      const clientSecret = process.env.GITHUB_CLIENT_SECRET;
+      
+      res.json({
+        configured: !!(clientId && clientSecret),
+        clientId: clientId ? `${clientId.substring(0, 8)}...` : null,
+        hasSecret: !!clientSecret,
+        callbackUrl: `${req.protocol}://${req.get('host')}/api/integrations/github/callback`
+      });
+    } catch (error) {
+      console.error("Error testing GitHub configuration:", error);
+      res.status(500).json({ error: "Failed to test configuration" });
     }
   });
 
