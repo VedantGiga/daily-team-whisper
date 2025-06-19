@@ -5,8 +5,11 @@ import { GitHubService } from "./services/githubService";
 import { 
   insertIntegrationSchema, 
   insertWorkActivitySchema, 
-  insertDailySummarySchema 
+  insertDailySummarySchema,
+  integrations
 } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Integration Routes
@@ -89,18 +92,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const integrationId = parseInt(req.params.id);
       
-      // Get the integration
-      const integration = await db
-        .select()
-        .from(integrations)
-        .where(eq(integrations.id, integrationId))
-        .limit(1);
+      // Get the integration using storage interface
+      const integration = await storage.getUserIntegrations(1);
+      const targetIntegration = integration.find(i => i.id === integrationId);
 
-      if (integration.length === 0) {
+      if (!targetIntegration) {
         return res.status(404).json({ error: "Integration not found" });
       }
 
-      const accessToken = integration[0].accessToken;
+      const accessToken = targetIntegration.accessToken;
       if (!accessToken) {
         return res.status(400).json({ error: "No access token available" });
       }

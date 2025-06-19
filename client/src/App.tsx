@@ -5,7 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Router, Route, Switch } from "wouter";
 import { Toaster as HotToaster } from 'react-hot-toast';
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import NetworkStatus from "@/components/NetworkStatus";
 
@@ -22,6 +22,7 @@ import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import Contact from "./pages/Contact";
 import NotFound from "./pages/NotFound";
+import HomePage from "./components/HomePage";
 
 // Auth Pages
 import Login from "./pages/auth/Login";
@@ -58,7 +59,7 @@ const App = () => (
           <NetworkStatus />
           <Switch>
             {/* Public Routes */}
-            <Route path="/" component={Landing} />
+            <Route path="/" component={HomePage} />
             <Route path="/privacy" component={Privacy} />
             <Route path="/terms" component={Terms} />
             <Route path="/contact" component={Contact} />
