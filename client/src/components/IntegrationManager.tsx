@@ -17,6 +17,26 @@ export const IntegrationManager = ({ userId }: IntegrationManagerProps) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Listen for OAuth popup messages
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      console.log('Received message:', event.data); // Debug log
+      if (event.data.type === 'GITHUB_AUTH_SUCCESS') {
+        console.log('GitHub auth success, refreshing data...'); // Debug log
+        // Refresh integrations data
+        queryClient.invalidateQueries({ queryKey: ["/api/integrations", userId] });
+        queryClient.invalidateQueries({ queryKey: ["/api/activities", userId] });
+        toast({
+          title: "GitHub Connected!",
+          description: `Successfully connected as @${event.data.username}`,
+        });
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [queryClient, userId, toast]);
+
   // Fetch user's integrations
   const { data: integrations = [], isLoading } = useQuery({
     queryKey: ["/api/integrations", userId],
@@ -27,11 +47,37 @@ export const IntegrationManager = ({ userId }: IntegrationManagerProps) => {
   const connectGitHubMutation = useMutation({
     mutationFn: () => IntegrationService.connectGitHub(userId),
     onSuccess: (data) => {
-      window.open(data.authUrl, "_blank", "width=600,height=700");
+      const popup = window.open(
+        data.authUrl, 
+        "github-oauth", 
+        "width=600,height=700,scrollbars=yes,resizable=yes"
+      );
+      
+      // Check if popup was blocked
+      if (!popup) {
+        toast({
+          title: "Popup Blocked",
+          description: "Please allow popups for this site and try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       toast({
         title: "GitHub Connection",
         description: "Complete the authorization in the popup window",
       });
+
+      // Optional: Poll to check if popup is closed manually
+      const checkClosed = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(checkClosed);
+          // Refresh data in case the message was missed
+          setTimeout(() => {
+            queryClient.invalidateQueries({ queryKey: ["/api/integrations", userId] });
+          }, 1000);
+        }
+      }, 1000);
     },
     onError: () => {
       toast({

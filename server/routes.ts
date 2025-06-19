@@ -84,6 +84,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ authUrl });
   });
 
+  // Get GitHub repositories for an integration
+  app.get("/api/integrations/:id/github/repos", async (req, res) => {
+    try {
+      const integrationId = parseInt(req.params.id);
+      
+      // Get the integration
+      const integration = await db
+        .select()
+        .from(integrations)
+        .where(eq(integrations.id, integrationId))
+        .limit(1);
+
+      if (integration.length === 0) {
+        return res.status(404).json({ error: "Integration not found" });
+      }
+
+      const accessToken = integration[0].accessToken;
+      if (!accessToken) {
+        return res.status(400).json({ error: "No access token available" });
+      }
+
+      // Fetch repositories from GitHub
+      const response = await fetch("https://api.github.com/user/repos?sort=updated&per_page=50", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "User-Agent": "Daily-Team-Whisper",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`GitHub API error: ${response.status}`);
+      }
+
+      const repos = await response.json();
+      res.json(repos);
+    } catch (error) {
+      console.error("Error fetching GitHub repositories:", error);
+      res.status(500).json({ error: "Failed to fetch repositories" });
+    }
+  });
+
   app.get("/api/integrations/github/callback", async (req, res) => {
     try {
       const { code, state } = req.query;
@@ -148,7 +189,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      res.json({ success: true, username: githubUser.login });
+      // Return HTML that closes the popup and notifies the parent window
+      res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>GitHub Connected</title>
+          <style>
+            body { 
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              height: 100vh;
+              margin: 0;
+              background: #f8fafc;
+            }
+            .container {
+              text-align: center;
+              padding: 2rem;
+              background: white;
+              border-radius: 8px;
+              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            }
+            .success {
+              color: #059669;
+              font-size: 1.5rem;
+              margin-bottom: 1rem;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="success">✅ GitHub Connected Successfully!</div>
+            <p>Connected as <strong>@${githubUser.login}</strong></p>
+            <p>This window will close automatically...</p>
+          </div>
+          <script>
+            // Notify parent window and close popup
+            if (window.opener) {
+              window.opener.postMessage({ 
+                type: 'GITHUB_AUTH_SUCCESS', 
+                username: '${githubUser.login}' 
+              }, '*');
+            }
+            setTimeout(() => {
+              window.close();
+            }, 2000);
+          </script>
+        </body>
+        </html>
+      `);
     } catch (error) {
       console.error("GitHub OAuth callback error:", error);
       res.status(500).json({ error: "Failed to connect GitHub account" });
