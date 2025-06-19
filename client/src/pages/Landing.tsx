@@ -91,15 +91,12 @@ const Landing = () => {
       {/* Header */}
       <header className="container mx-auto px-6 py-4">
         <nav className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center">
             <img 
               src={autoBriefLogo} 
-              alt="AutoBrief AI" 
-              className="w-8 h-8 rounded-lg object-contain"
+              alt="AutoBrief" 
+              className="h-8 w-auto object-contain"
             />
-            <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-              AutoBrief AI
-            </span>
           </div>
           <div className="flex items-center gap-6">
             <Link to="/privacy" className="text-muted-foreground hover:text-foreground transition-colors">
@@ -260,15 +257,12 @@ const Landing = () => {
         <div className="container mx-auto px-6">
           <div className="grid md:grid-cols-4 gap-8">
             <div>
-              <div className="flex items-center gap-2 mb-4">
+              <div className="mb-4">
                 <img 
                   src={autoBriefLogo} 
-                  alt="AutoBrief AI" 
-                  className="w-8 h-8 rounded-lg object-contain"
+                  alt="AutoBrief" 
+                  className="h-8 w-auto object-contain"
                 />
-                <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                  AutoBrief AI
-                </span>
               </div>
               <p className="text-muted-foreground text-sm">
                 AI-powered work summaries for remote teams.

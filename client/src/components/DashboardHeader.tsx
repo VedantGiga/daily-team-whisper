@@ -44,16 +44,12 @@ export const DashboardHeader = ({ onThemeToggle, isDarkMode }: DashboardHeaderPr
       <div className="container mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center">
             <img 
               src={autoBriefLogo} 
-              alt="AutoBrief AI" 
-              className="w-10 h-10 rounded-lg object-contain"
+              alt="AutoBrief" 
+              className="h-8 w-auto object-contain"
             />
-            <div>
-              <h1 className="text-xl font-bold">AutoBrief AI</h1>
-              <p className="text-xs text-muted-foreground">AI Work Summaries</p>
-            </div>
           </div>
 
           {/* Navigation */}
