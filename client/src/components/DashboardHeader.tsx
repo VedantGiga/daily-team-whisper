@@ -49,7 +49,7 @@ export const DashboardHeader = ({ onThemeToggle, isDarkMode }: DashboardHeaderPr
             <img 
               src={autoBriefLogo} 
               alt="AutoBrief" 
-              className="h-24 w-auto object-contain cursor-pointer hover:opacity-80 transition-opacity"
+              className="h-28 w-48 object-contain cursor-pointer hover:opacity-80 transition-opacity"
             />
           </Link>
 
