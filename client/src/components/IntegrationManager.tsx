@@ -132,10 +132,12 @@ export const IntegrationManager = ({ userId }: IntegrationManagerProps) => {
     }
   };
 
-  const formatLastSync = (date: Date | null) => {
+  const formatLastSync = (date: Date | string | null) => {
     if (!date) return "Never";
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    const diffMinutes = Math.ceil((dateObj.getTime() - Date.now()) / (1000 * 60));
     return new Intl.RelativeTimeFormat("en", { numeric: "auto" }).format(
-      Math.ceil((date.getTime() - Date.now()) / (1000 * 60)),
+      diffMinutes,
       "minute"
     );
   };

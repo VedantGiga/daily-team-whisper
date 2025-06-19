@@ -93,6 +93,12 @@ AutoBrief is a full-stack web application that provides AI-powered work summarie
 The application uses a monorepo structure with shared schema definitions and TypeScript configurations for consistency across frontend and backend codebases.
 
 ## Changelog
+- June 19, 2025. Added comprehensive integration management system:
+  - Database schema for integrations, work activities, and daily summaries
+  - Backend API with OAuth flows for external service connections
+  - Frontend integration manager with real-time status and controls
+  - GitHub integration with OAuth flow (ready for production with API keys)
+  - Sample data demonstrating activity tracking and summary generation
 - June 18, 2025. Initial setup
 
 ## User Preferences
