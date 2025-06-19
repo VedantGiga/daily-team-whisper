@@ -55,9 +55,13 @@ export const DashboardHeader = ({ onThemeToggle, isDarkMode }: DashboardHeaderPr
 
           {/* Navigation */}
           <nav className="hidden md:flex items-center gap-6">
-            <Button variant="ghost" size="sm">Dashboard</Button>
+            <Link to="/dashboard">
+              <Button variant="ghost" size="sm">Dashboard</Button>
+            </Link>
             <Button variant="ghost" size="sm">Summaries</Button>
-            <Button variant="ghost" size="sm">Integrations</Button>
+            <Link to="/integrations">
+              <Button variant="ghost" size="sm">Integrations</Button>
+            </Link>
             <Button variant="ghost" size="sm">Team</Button>
           </nav>
 
