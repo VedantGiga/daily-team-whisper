@@ -58,11 +58,15 @@ export const DashboardHeader = ({ onThemeToggle, isDarkMode }: DashboardHeaderPr
             <Link to="/dashboard">
               <Button variant="ghost" size="sm">Dashboard</Button>
             </Link>
-            <Button variant="ghost" size="sm">Summaries</Button>
+            <Link to="/summaries">
+              <Button variant="ghost" size="sm">Summaries</Button>
+            </Link>
             <Link to="/integrations">
               <Button variant="ghost" size="sm">Integrations</Button>
             </Link>
-            <Button variant="ghost" size="sm">Team</Button>
+            <Link to="/team">
+              <Button variant="ghost" size="sm">Team</Button>
+            </Link>
           </nav>
 
           {/* User Menu */}

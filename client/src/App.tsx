@@ -18,6 +18,8 @@ if (import.meta.env.DEV) {
 import Landing from "./pages/Landing";
 import Dashboard from "./pages/Dashboard";
 import Integrations from "./pages/Integrations";
+import Summaries from "./pages/Summaries";
+import Team from "./pages/Team";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import Contact from "./pages/Contact";
@@ -80,6 +82,18 @@ const App = () => (
             <Route path="/integrations">
               <ProtectedRoute>
                 <Integrations />
+              </ProtectedRoute>
+            </Route>
+
+            <Route path="/summaries">
+              <ProtectedRoute>
+                <Summaries />
+              </ProtectedRoute>
+            </Route>
+
+            <Route path="/team">
+              <ProtectedRoute>
+                <Team />
               </ProtectedRoute>
             </Route>
             
