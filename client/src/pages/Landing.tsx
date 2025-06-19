@@ -22,7 +22,9 @@ import {
   Globe,
   Smartphone,
   Lock,
-  Rocket
+  Rocket,
+  Moon,
+  Sun
 } from "lucide-react";
 import { Link } from "wouter";
 import { motion, useScroll, useTransform } from "framer-motion";
@@ -31,6 +33,11 @@ import autoBriefLogo from "@/assets/autobrief-logo.png";
 
 const Landing = () => {
   const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    const isDark = document.documentElement.classList.contains('dark');
+    setIsDarkMode(isDark);
+  }, []);
 
   const toggleTheme = () => {
     setIsDarkMode(!isDarkMode);
@@ -108,6 +115,14 @@ const Landing = () => {
             <Link to="/contact" className="text-muted-foreground hover:text-foreground transition-colors">
               Contact Us
             </Link>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleTheme}
+              className="rounded-full"
+            >
+              {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
             <Link to="/auth/login">
               <Button variant="ghost" className="text-foreground">
                 Sign In
