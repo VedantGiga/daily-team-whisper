@@ -1,5 +1,6 @@
 import { IntegrationManager } from "@/components/IntegrationManager";
 import { GitHubConfigStatus } from "@/components/GitHubConfigStatus";
+import { ActivityFeed } from "@/components/ActivityFeed";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { useState } from "react";
 
@@ -22,7 +23,10 @@ const Integrations = () => {
       
       <main className="container mx-auto px-6 py-8 space-y-8">
         <GitHubConfigStatus />
-        <IntegrationManager userId={userId} />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <IntegrationManager userId={userId} />
+          <ActivityFeed userId={userId} />
+        </div>
       </main>
     </div>
   );
