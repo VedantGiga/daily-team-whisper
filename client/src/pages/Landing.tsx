@@ -27,7 +27,7 @@ import {
 import { Link } from "wouter";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
-import autoBriefLogo from "@/assets/autobrief-logo.jpg";
+import autoBriefLogo from "@/assets/autobrief-logo.png";
 
 const Landing = () => {
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -91,13 +91,13 @@ const Landing = () => {
       {/* Header */}
       <header className="container mx-auto px-6 py-4">
         <nav className="flex items-center justify-between">
-          <div className="flex items-center">
+          <Link to="/">
             <img 
               src={autoBriefLogo} 
               alt="AutoBrief" 
-              className="h-12 w-auto object-contain"
+              className="h-16 w-auto object-contain cursor-pointer hover:opacity-80 transition-opacity"
             />
-          </div>
+          </Link>
           <div className="flex items-center gap-6">
             <Link to="/privacy" className="text-muted-foreground hover:text-foreground transition-colors">
               Privacy Policy
@@ -258,11 +258,13 @@ const Landing = () => {
           <div className="grid md:grid-cols-4 gap-8">
             <div>
               <div className="mb-4">
-                <img 
-                  src={autoBriefLogo} 
-                  alt="AutoBrief" 
-                  className="h-12 w-auto object-contain"
-                />
+                <Link to="/">
+                  <img 
+                    src={autoBriefLogo} 
+                    alt="AutoBrief" 
+                    className="h-16 w-auto object-contain cursor-pointer hover:opacity-80 transition-opacity"
+                  />
+                </Link>
               </div>
               <p className="text-muted-foreground text-sm">
                 AI-powered work summaries for remote teams.

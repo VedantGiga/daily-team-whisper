@@ -12,7 +12,8 @@ import {
 import { Moon, Sun, User, Settings, Mail, LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { NetworkStatusBadge } from "@/components/NetworkStatus";
-import autoBriefLogo from "@/assets/autobrief-logo.jpg";
+import autoBriefLogo from "@/assets/autobrief-logo.png";
+import { Link } from "wouter";
 
 interface DashboardHeaderProps {
   onThemeToggle: () => void;
@@ -44,13 +45,13 @@ export const DashboardHeader = ({ onThemeToggle, isDarkMode }: DashboardHeaderPr
       <div className="container mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <div className="flex items-center">
+          <Link to="/">
             <img 
               src={autoBriefLogo} 
               alt="AutoBrief" 
-              className="h-12 w-auto object-contain"
+              className="h-16 w-auto object-contain cursor-pointer hover:opacity-80 transition-opacity"
             />
-          </div>
+          </Link>
 
           {/* Navigation */}
           <nav className="hidden md:flex items-center gap-6">
