@@ -179,7 +179,7 @@ const Signup = () => {
             <img 
               src={autoBriefLogo} 
               alt="AutoBrief" 
-              className="h-16 w-auto object-contain"
+              className="h-20 w-auto object-contain filter dark:brightness-0 dark:invert"
             />
           </div>
           
