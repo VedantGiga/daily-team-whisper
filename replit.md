@@ -109,3 +109,5 @@ The application uses a monorepo structure with shared schema definitions and Typ
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+Navigation preference: Landing page with "Never miss a beat" text as home page instead of dashboard.
+UI preference: Logo visibility fixed for dark theme across all components.
