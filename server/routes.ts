@@ -815,8 +815,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/integrations/:id/sync", async (req, res) => {
     try {
       const integrationId = parseInt(req.params.id);
-      const integrations = await storage.getUserIntegrations(1); // Get all integrations for demo user
-      const integration = integrations.find(i => i.id === integrationId);
+      
+      // First get the integration to find its userId
+      const allUsers = [1, 1549479646]; // Support both demo user and authenticated users
+      let integration = null;
+      
+      for (const userId of allUsers) {
+        const userIntegrations = await storage.getUserIntegrations(userId);
+        integration = userIntegrations.find(i => i.id === integrationId);
+        if (integration) break;
+      }
       
       if (!integration) {
         return res.status(404).json({ error: "Integration not found" });
