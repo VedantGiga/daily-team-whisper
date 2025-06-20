@@ -12,6 +12,8 @@ import {
   type DailySummary,
   type InsertDailySummary
 } from "@shared/schema";
+import { db } from "./db";
+import { eq, and, gte, lte, desc } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -328,4 +330,122 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export class DatabaseStorage implements IStorage {
+  // User operations
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user || undefined;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
+    return user;
+  }
+
+  // Integration operations
+  async getUserIntegrations(userId: number): Promise<Integration[]> {
+    return await db.select().from(integrations).where(eq(integrations.userId, userId));
+  }
+
+  async getIntegrationByProvider(userId: number, provider: string): Promise<Integration | undefined> {
+    const [integration] = await db
+      .select()
+      .from(integrations)
+      .where(and(eq(integrations.userId, userId), eq(integrations.provider, provider)));
+    return integration || undefined;
+  }
+
+  async createIntegration(insertIntegration: InsertIntegration): Promise<Integration> {
+    const [integration] = await db
+      .insert(integrations)
+      .values(insertIntegration)
+      .returning();
+    return integration;
+  }
+
+  async updateIntegration(id: number, updates: Partial<Integration>): Promise<Integration> {
+    const [integration] = await db
+      .update(integrations)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(integrations.id, id))
+      .returning();
+    return integration;
+  }
+
+  async deleteIntegration(id: number): Promise<void> {
+    await db.delete(integrations).where(eq(integrations.id, id));
+  }
+
+  // Work activity operations
+  async createWorkActivity(insertActivity: InsertWorkActivity): Promise<WorkActivity> {
+    const [activity] = await db
+      .insert(workActivities)
+      .values(insertActivity)
+      .returning();
+    return activity;
+  }
+
+  async getUserWorkActivities(userId: number, limit = 50): Promise<WorkActivity[]> {
+    return await db
+      .select()
+      .from(workActivities)
+      .where(eq(workActivities.userId, userId))
+      .orderBy(desc(workActivities.timestamp))
+      .limit(limit);
+  }
+
+  async getWorkActivitiesByDateRange(userId: number, startDate: Date, endDate: Date): Promise<WorkActivity[]> {
+    return await db
+      .select()
+      .from(workActivities)
+      .where(
+        and(
+          eq(workActivities.userId, userId),
+          gte(workActivities.timestamp, startDate),
+          lte(workActivities.timestamp, endDate)
+        )
+      )
+      .orderBy(desc(workActivities.timestamp));
+  }
+
+  // Daily summary operations
+  async createDailySummary(insertSummary: InsertDailySummary): Promise<DailySummary> {
+    const [summary] = await db
+      .insert(dailySummaries)
+      .values(insertSummary)
+      .returning();
+    return summary;
+  }
+
+  async getDailySummary(userId: number, date: string): Promise<DailySummary | undefined> {
+    const [summary] = await db
+      .select()
+      .from(dailySummaries)
+      .where(and(eq(dailySummaries.userId, userId), eq(dailySummaries.date, date)));
+    return summary || undefined;
+  }
+
+  async getUserDailySummaries(userId: number, limit = 30): Promise<DailySummary[]> {
+    return await db
+      .select()
+      .from(dailySummaries)
+      .where(eq(dailySummaries.userId, userId))
+      .orderBy(desc(dailySummaries.date))
+      .limit(limit);
+  }
+}
+
+export const storage = new DatabaseStorage();
