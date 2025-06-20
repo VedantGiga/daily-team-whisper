@@ -93,6 +93,10 @@ AutoBrief is a full-stack web application that provides AI-powered work summarie
 The application uses a monorepo structure with shared schema definitions and TypeScript configurations for consistency across frontend and backend codebases.
 
 ## Changelog
+- June 20, 2025. UI improvements to landing page navbar:
+  - Removed navigation links (Features, How it Works, Reviews) for cleaner design
+  - Increased logo size to h-24 w-48 for better visibility and brand presence
+  - Maintained responsive design and dark mode compatibility
 - June 19, 2025. Migration from Replit Agent to standard Replit environment completed:
   - Fixed authentication persistence when navigating between pages
   - Updated landing page to show appropriate buttons for authenticated users
