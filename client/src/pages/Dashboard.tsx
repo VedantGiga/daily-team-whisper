@@ -26,9 +26,13 @@ import { DashboardHeader } from "@/components/DashboardHeader";
 import { IntegrationManager } from "@/components/IntegrationManager";
 import { ActivityFeed } from "@/components/ActivityFeed";
 import { QuickStats } from "@/components/QuickStats";
+import { useAuth } from "@/contexts/AuthContext";
+import { useUserId } from "@/lib/userService";
 
 const Dashboard = () => {
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const { currentUser } = useAuth();
+  const userId = useUserId(currentUser?.uid);
 
   const toggleTheme = () => {
     setIsDarkMode(!isDarkMode);
@@ -139,7 +143,7 @@ const Dashboard = () => {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <IntegrationManager userId={1} />
+                  {userId && <IntegrationManager userId={userId} />}
                 </CardContent>
               </Card>
             </motion.div>
@@ -168,7 +172,7 @@ const Dashboard = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <ActivityFeed userId={1} />
+                  {userId && <ActivityFeed userId={userId} />}
                 </CardContent>
               </Card>
             </motion.div>

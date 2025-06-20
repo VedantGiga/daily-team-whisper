@@ -7,10 +7,13 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { IntegrationService } from "@/lib/integrationService";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { useUserId } from "@/lib/userService";
 
 const Integrations = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { currentUser, userProfile } = useAuth();
   
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return document.documentElement.classList.contains('dark');
@@ -21,13 +24,14 @@ const Integrations = () => {
     document.documentElement.classList.toggle('dark');
   };
 
-  // Mock user ID for now - in a real app this would come from auth context
-  const userId = 1;
+  // Get user ID from Firebase UID
+  const userId = useUserId(currentUser?.uid);
 
   // Fetch user's integrations
   const { data: integrations = [] } = useQuery({
     queryKey: ["/api/integrations", userId],
-    queryFn: () => IntegrationService.getUserIntegrations(userId),
+    queryFn: () => IntegrationService.getUserIntegrations(userId!),
+    enabled: !!userId, // Only fetch when we have a valid userId
   });
 
   // Sync integration mutation
@@ -67,14 +71,14 @@ const Integrations = () => {
               isSyncing={syncIntegrationMutation.isPending}
             />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <IntegrationManager userId={userId} />
-              <ActivityFeed userId={userId} />
+              {userId && <IntegrationManager userId={userId} />}
+              {userId && <ActivityFeed userId={userId} />}
             </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <IntegrationManager userId={userId} />
-            <ActivityFeed userId={userId} />
+            {userId && <IntegrationManager userId={userId} />}
+            {userId && <ActivityFeed userId={userId} />}
           </div>
         )}
       </main>
