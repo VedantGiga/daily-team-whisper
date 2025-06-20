@@ -176,35 +176,11 @@ const Landing = () => {
             <motion.img 
               src={autoBriefLogo} 
               alt="AutoBrief" 
-              className="h-16 w-32 object-contain cursor-pointer filter dark:brightness-0 dark:invert"
+              className="h-20 w-40 object-contain cursor-pointer filter dark:brightness-0 dark:invert"
               whileHover={{ scale: 1.05 }}
               transition={{ type: "spring", stiffness: 400 }}
             />
           </Link>
-          
-          <div className="hidden md:flex items-center gap-8">
-            <motion.a 
-              href="#features" 
-              className="text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors font-medium"
-              whileHover={{ y: -2 }}
-            >
-              Features
-            </motion.a>
-            <motion.a 
-              href="#how-it-works" 
-              className="text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors font-medium"
-              whileHover={{ y: -2 }}
-            >
-              How it Works
-            </motion.a>
-            <motion.a 
-              href="#testimonials" 
-              className="text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors font-medium"
-              whileHover={{ y: -2 }}
-            >
-              Reviews
-            </motion.a>
-          </div>
 
           <div className="flex items-center gap-4">
             <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
