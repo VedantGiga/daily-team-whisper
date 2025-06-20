@@ -44,21 +44,30 @@ export class GoogleCalendarService {
 
   private static async syncRecentEvents(integration: Integration): Promise<void> {
     try {
-      // Get events from the past 7 days
-      const oneWeekAgo = new Date();
-      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+      // Get events from the past 30 days
+      const oneMonthAgo = new Date();
+      oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
       
       const now = new Date();
       
+      console.log(`Syncing calendar events from ${oneMonthAgo.toISOString()} to ${now.toISOString()}`);
+      
       const events = await this.makeGoogleRequest(
-        `/calendars/primary/events?timeMin=${oneWeekAgo.toISOString()}&timeMax=${now.toISOString()}&orderBy=startTime&singleEvents=true&maxResults=50`,
+        `/calendars/primary/events?timeMin=${oneMonthAgo.toISOString()}&timeMax=${now.toISOString()}&orderBy=startTime&singleEvents=true&maxResults=50`,
         integration.accessToken!
       );
+      
+      console.log(`Found ${events.items ? events.items.length : 0} calendar events`);
 
       if (events.items) {
         for (const event of events.items) {
+          console.log(`Processing event: ${event.summary || 'Untitled'}, start: ${event.start?.dateTime || event.start?.date || 'No start time'}`);
+          
           // Skip events without start time or that are all-day events without proper time
-          if (!event.start?.dateTime) continue;
+          if (!event.start?.dateTime) {
+            console.log(`Skipping event ${event.summary || 'Untitled'} - no dateTime (likely all-day event)`);
+            continue;
+          }
 
           // Check if we already have this event
           const existingActivity = await this.findExistingActivity(
@@ -98,9 +107,14 @@ export class GoogleCalendarService {
               }
             };
 
+            console.log(`Creating activity for event: ${event.summary}`);
             await storage.createWorkActivity(activity);
+          } else {
+            console.log(`Activity already exists for event: ${event.summary}`);
           }
         }
+      } else {
+        console.log('No events.items found in response');
       }
 
       // Sync user's calendar list and profile

@@ -593,6 +593,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Test endpoint to debug calendar events
+  app.get("/api/integrations/:id/google-calendar/debug", async (req, res) => {
+    try {
+      const integrationId = parseInt(req.params.id);
+      const integration = await storage.getUserIntegrations(1);
+      const targetIntegration = integration.find(i => i.id === integrationId);
+
+      if (!targetIntegration) {
+        return res.status(404).json({ error: "Integration not found" });
+      }
+
+      // Get events from the past year to check if there are any events at all
+      const oneYearAgo = new Date();
+      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+      const now = new Date();
+
+      const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?orderBy=startTime&singleEvents=true&maxResults=50`, {
+        headers: {
+          'Authorization': `Bearer ${targetIntegration.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Google Calendar API error: ${response.status} - ${error}`);
+      }
+
+      const events = await response.json();
+      
+      res.json({
+        timeRange: {
+          from: oneYearAgo.toISOString(),
+          to: now.toISOString()
+        },
+        totalEvents: events.items ? events.items.length : 0,
+        events: events.items || [],
+        debugInfo: {
+          hasAccessToken: !!targetIntegration.accessToken,
+          integration: {
+            id: targetIntegration.id,
+            provider: targetIntegration.provider,
+            isConnected: targetIntegration.isConnected,
+            lastSyncAt: targetIntegration.lastSyncAt
+          }
+        }
+      });
+    } catch (error) {
+      console.error("Error debugging Google Calendar events:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Get Google Calendar calendars
   app.get("/api/integrations/:id/google-calendar/calendars", async (req, res) => {
     try {
