@@ -627,36 +627,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Notion integration not configured" });
       }
 
-      // Run the setup script
-      const { spawn } = require('child_process');
-      const setupProcess = spawn('tsx', ['server/setup-notion.ts'], {
-        stdio: 'pipe',
-        env: process.env
+      // Set up Notion databases directly
+      const { createDatabaseIfNotExists } = await import('./notion.js');
+      
+      // Create Work Activities database
+      const activitiesDb = await createDatabaseIfNotExists("Work Activities", {
+        Title: { title: {} },
+        Description: { rich_text: {} },
+        Type: {
+          select: {
+            options: [
+              { name: "Commit", color: "blue" },
+              { name: "Pull Request", color: "green" },
+              { name: "Issue", color: "orange" },
+              { name: "Meeting", color: "purple" },
+              { name: "Calendar Event", color: "pink" }
+            ]
+          }
+        },
+        Source: {
+          select: {
+            options: [
+              { name: "GitHub", color: "default" },
+              { name: "Google Calendar", color: "yellow" },
+              { name: "Slack", color: "red" }
+            ]
+          }
+        },
+        Date: { date: {} },
+        Completed: { checkbox: {} }
       });
 
-      let output = '';
-      let errorOutput = '';
-
-      setupProcess.stdout.on('data', (data: Buffer) => {
-        output += data.toString();
+      // Create Daily Summaries database
+      const summariesDb = await createDatabaseIfNotExists("Daily Summaries", {
+        Title: { title: {} },
+        Date: { date: {} },
+        Summary: { rich_text: {} },
+        TasksCompleted: { number: {} },
+        Meetings: { number: {} },
+        Blockers: { number: {} }
       });
-
-      setupProcess.stderr.on('data', (data: Buffer) => {
-        errorOutput += data.toString();
-      });
-
-      setupProcess.on('close', (code: number) => {
-        if (code === 0) {
-          res.json({ 
-            success: true, 
-            message: "Notion databases created successfully",
-            output: output
-          });
-        } else {
-          res.status(500).json({ 
-            error: "Failed to setup Notion databases",
-            details: errorOutput || output
-          });
+      
+      res.json({ 
+        success: true, 
+        message: "Notion databases created successfully",
+        databases: {
+          activities: activitiesDb.id,
+          summaries: summariesDb.id
         }
       });
 

@@ -40,7 +40,7 @@ export async function getNotionDatabases() {
             // Process the results
             for (const block of response.results) {
                 // Check if the block is a child database
-                if (block.type === "child_database") {
+                if ('type' in block && block.type === "child_database") {
                     const databaseId = block.id;
 
                     // Retrieve the database title
@@ -74,7 +74,7 @@ export async function findDatabaseByTitle(title: string) {
     const databases = await getNotionDatabases();
 
     for (const db of databases) {
-        if (db.title && Array.isArray(db.title) && db.title.length > 0) {
+        if ('title' in db && db.title && Array.isArray(db.title) && db.title.length > 0) {
             const dbTitle = db.title[0]?.plain_text?.toLowerCase() || "";
             if (dbTitle === title.toLowerCase()) {
                 return db;
