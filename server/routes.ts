@@ -421,7 +421,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ].join(' ');
 
       const state = Buffer.from(JSON.stringify({ userId })).toString("base64");
-      const redirectUri = `${req.protocol}://${req.get('host')}/api/integrations/google-calendar/callback`;
+      // Use REPLIT_DOMAINS for the redirect URI to ensure it matches the actual domain
+      const host = process.env.REPLIT_DOMAINS ? process.env.REPLIT_DOMAINS.split(',')[0] : req.get('host');
+      const redirectUri = `https://${host}/api/integrations/google-calendar/callback`;
       
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${process.env.GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&response_type=code&state=${state}&access_type=offline&prompt=consent`;
       
@@ -443,6 +445,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { userId } = JSON.parse(Buffer.from(state as string, "base64").toString());
       
+      // Use REPLIT_DOMAINS for the redirect URI to ensure it matches the actual domain
+      const host = process.env.REPLIT_DOMAINS ? process.env.REPLIT_DOMAINS.split(',')[0] : req.get('host');
+      
       // Exchange code for access token
       const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
@@ -454,7 +459,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           client_secret: process.env.GOOGLE_CLIENT_SECRET!,
           code: code.toString(),
           grant_type: 'authorization_code',
-          redirect_uri: `${req.protocol}://${req.get('host')}/api/integrations/google-calendar/callback`
+          redirect_uri: `https://${host}/api/integrations/google-calendar/callback`
         })
       });
 
