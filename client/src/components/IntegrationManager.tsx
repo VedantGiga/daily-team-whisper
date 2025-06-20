@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { AlertCircle, CheckCircle, Clock, ExternalLink, RefreshCw, Calendar, Plus } from "lucide-react";
-import { SiGithub, SiGooglecalendar, SiSlack } from "react-icons/si";
+import { SiGithub, SiGooglecalendar, SiSlack, SiNotion } from "react-icons/si";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Integration } from "@shared/schema";
@@ -21,6 +21,8 @@ const getProviderIcon = (provider: string) => {
       return <SiGithub className="h-5 w-5" />;
     case 'slack':
       return <SiSlack className="h-5 w-5" />;
+    case 'notion':
+      return <SiNotion className="h-5 w-5" />;
     default:
       return <CheckCircle className="h-5 w-5" />;
   }
@@ -34,6 +36,8 @@ const getProviderColor = (provider: string) => {
       return 'from-gray-800 to-black';
     case 'slack':
       return 'from-purple-500 to-purple-700';
+    case 'notion':
+      return 'from-black to-gray-800';
     default:
       return 'from-gray-500 to-gray-600';
   }
@@ -47,6 +51,8 @@ const formatProviderName = (provider: string) => {
       return 'GitHub';
     case 'slack':
       return 'Slack';
+    case 'notion':
+      return 'Notion';
     default:
       return provider;
   }
@@ -66,6 +72,13 @@ const AVAILABLE_INTEGRATIONS = [
     description: 'Track commits, pull requests, and issues',
     color: 'from-gray-800 to-black',
     icon: SiGithub,
+  },
+  {
+    provider: 'notion',
+    name: 'Notion',
+    description: 'Create databases and sync work activities',
+    color: 'from-black to-gray-800',
+    icon: SiNotion,
   },
   {
     provider: 'slack',
@@ -130,6 +143,16 @@ export const IntegrationManager = ({ userId }: IntegrationManagerProps) => {
     queryFn: async () => {
       const response = await fetch('/api/integrations/google-calendar/test');
       if (!response.ok) throw new Error('Failed to check Google Calendar config');
+      return response.json();
+    },
+  });
+
+  // Check Notion configuration
+  const { data: notionConfig } = useQuery({
+    queryKey: ["/api/integrations/notion/test"],
+    queryFn: async () => {
+      const response = await fetch('/api/integrations/notion/test');
+      if (!response.ok) throw new Error('Failed to check Notion config');
       return response.json();
     },
   });
@@ -223,6 +246,33 @@ export const IntegrationManager = ({ userId }: IntegrationManagerProps) => {
       toast({
         title: "Connection Failed",
         description: "Unable to connect to Google Calendar. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Connect Notion mutation
+  const connectNotionMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/integrations/notion/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+      if (!response.ok) throw new Error('Failed to connect Notion');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/integrations", userId] });
+      toast({
+        title: "Notion Connected",
+        description: "Notion integration connected successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Connection Failed",
+        description: "Unable to connect to Notion. Please check your configuration.",
         variant: "destructive",
       });
     },
@@ -340,7 +390,8 @@ export const IntegrationManager = ({ userId }: IntegrationManagerProps) => {
           const connectedIntegration = integrations.find((i: Integration) => i.provider === availableIntegration.provider);
           const isConnected = connectedIntegration?.isConnected || false;
           const canConnect = availableIntegration.provider === 'github' ? githubConfig?.configured : 
-                            availableIntegration.provider === 'google_calendar' ? googleCalendarConfig?.configured : true;
+                            availableIntegration.provider === 'google_calendar' ? googleCalendarConfig?.configured :
+                            availableIntegration.provider === 'notion' ? notionConfig?.configured : true;
           
           return (
             <motion.div
@@ -459,12 +510,15 @@ export const IntegrationManager = ({ userId }: IntegrationManagerProps) => {
                             connectGitHubMutation.mutate();
                           } else if (availableIntegration.provider === 'google_calendar') {
                             connectGoogleCalendarMutation.mutate();
+                          } else if (availableIntegration.provider === 'notion') {
+                            connectNotionMutation.mutate();
                           }
                         }}
                         disabled={
                           !canConnect || 
                           connectGitHubMutation.isPending || 
                           connectGoogleCalendarMutation.isPending ||
+                          connectNotionMutation.isPending ||
                           availableIntegration.provider === 'slack'
                         }
                         className="h-8 px-3"

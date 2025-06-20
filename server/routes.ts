@@ -568,6 +568,104 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Notion Integration Routes
+  
+  // Test Notion configuration
+  app.get("/api/integrations/notion/test", async (req, res) => {
+    try {
+      const configured = !!(process.env.NOTION_INTEGRATION_SECRET && process.env.NOTION_PAGE_URL);
+      
+      res.json({
+        configured,
+        hasSecret: !!process.env.NOTION_INTEGRATION_SECRET,
+        hasPageUrl: !!process.env.NOTION_PAGE_URL
+      });
+    } catch (error) {
+      console.error("Error testing Notion configuration:", error);
+      res.status(500).json({ error: "Failed to test configuration" });
+    }
+  });
+
+  // Connect Notion integration
+  app.post("/api/integrations/notion/connect", async (req, res) => {
+    try {
+      const { userId } = req.body;
+      
+      if (!process.env.NOTION_INTEGRATION_SECRET || !process.env.NOTION_PAGE_URL) {
+        return res.status(400).json({ error: "Notion integration not configured" });
+      }
+
+      // Check if integration already exists
+      const existingIntegration = await storage.getIntegrationByProvider(userId, 'notion');
+      
+      if (existingIntegration) {
+        await storage.updateIntegration(existingIntegration.id, {
+          isConnected: true,
+          lastSyncAt: new Date(),
+        });
+      } else {
+        await storage.createIntegration({
+          userId,
+          provider: 'notion',
+          isConnected: true,
+          accessToken: 'notion_configured', // Notion uses API key auth
+          lastSyncAt: new Date(),
+        });
+      }
+
+      res.json({ success: true, message: "Notion integration connected successfully" });
+    } catch (error) {
+      console.error("Error connecting Notion integration:", error);
+      res.status(500).json({ error: "Failed to connect Notion integration" });
+    }
+  });
+
+  // Setup Notion databases
+  app.post("/api/integrations/notion/setup", async (req, res) => {
+    try {
+      if (!process.env.NOTION_INTEGRATION_SECRET || !process.env.NOTION_PAGE_URL) {
+        return res.status(400).json({ error: "Notion integration not configured" });
+      }
+
+      // Run the setup script
+      const { spawn } = require('child_process');
+      const setupProcess = spawn('tsx', ['server/setup-notion.ts'], {
+        stdio: 'pipe',
+        env: process.env
+      });
+
+      let output = '';
+      let errorOutput = '';
+
+      setupProcess.stdout.on('data', (data: Buffer) => {
+        output += data.toString();
+      });
+
+      setupProcess.stderr.on('data', (data: Buffer) => {
+        errorOutput += data.toString();
+      });
+
+      setupProcess.on('close', (code: number) => {
+        if (code === 0) {
+          res.json({ 
+            success: true, 
+            message: "Notion databases created successfully",
+            output: output
+          });
+        } else {
+          res.status(500).json({ 
+            error: "Failed to setup Notion databases",
+            details: errorOutput || output
+          });
+        }
+      });
+
+    } catch (error) {
+      console.error("Error setting up Notion databases:", error);
+      res.status(500).json({ error: "Failed to setup Notion databases" });
+    }
+  });
+
   // Get Google Calendar events
   app.get("/api/integrations/:id/google-calendar/events", async (req, res) => {
     try {
