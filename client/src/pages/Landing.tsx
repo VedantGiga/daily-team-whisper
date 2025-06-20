@@ -176,7 +176,7 @@ const Landing = () => {
             <motion.img 
               src={autoBriefLogo} 
               alt="AutoBrief" 
-              className="h-12 w-20 object-contain cursor-pointer filter dark:brightness-0 dark:invert"
+              className="h-16 w-32 object-contain cursor-pointer filter dark:brightness-0 dark:invert"
               whileHover={{ scale: 1.05 }}
               transition={{ type: "spring", stiffness: 400 }}
             />
