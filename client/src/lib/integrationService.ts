@@ -56,6 +56,14 @@ export class IntegrationService {
     return response.json();
   }
 
+  static async connectGoogleCalendar(userId: number): Promise<{ authUrl: string }> {
+    const response = await fetch(`${API_BASE}/integrations/google-calendar/connect?userId=${userId}`);
+    if (!response.ok) {
+      throw new Error("Failed to get Google Calendar auth URL");
+    }
+    return response.json();
+  }
+
   static async syncIntegration(id: number): Promise<{ success: boolean; lastSyncAt: Date }> {
     const response = await fetch(`${API_BASE}/integrations/${id}/sync`, {
       method: "POST",
@@ -123,7 +131,7 @@ export const INTEGRATION_PROVIDERS = {
     color: "bg-purple-600",
     icon: "💬",
   },
-  google: {
+  google_calendar: {
     name: "Google Calendar",
     description: "Monitor your meetings, events, and scheduled time blocks",
     color: "bg-blue-600",

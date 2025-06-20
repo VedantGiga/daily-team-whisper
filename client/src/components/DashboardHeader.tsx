@@ -41,48 +41,56 @@ export const DashboardHeader = ({ onThemeToggle, isDarkMode }: DashboardHeaderPr
   };
 
   return (
-    <header className="border-b bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm sticky top-0 z-50">
-      <div className="container mx-auto px-6 py-4">
+    <header className="border-b bg-white/80 dark:bg-slate-900/80 backdrop-blur-md sticky top-0 z-50 shadow-sm">
+      <div className="container mx-auto px-6 py-3">
         <div className="flex items-center justify-between">
           {/* Logo */}
           <Link to="/">
             <img 
               src={autoBriefLogo} 
               alt="AutoBrief" 
-              className="h-28 w-48 object-contain cursor-pointer hover:opacity-80 transition-opacity filter dark:brightness-0 dark:invert"
+              className="h-24 w-40 object-contain cursor-pointer hover:opacity-80 transition-all duration-300 hover:scale-105 filter dark:brightness-0 dark:invert"
             />
           </Link>
 
           {/* Navigation */}
-          <nav className="hidden md:flex items-center gap-6">
+          <nav className="hidden md:flex items-center gap-2 bg-muted/50 rounded-full p-1">
             <Link to="/dashboard">
-              <Button variant="ghost" size="sm">Dashboard</Button>
+              <Button variant="ghost" size="sm" className="rounded-full px-4 hover:bg-white dark:hover:bg-slate-800 transition-all duration-200">
+                Dashboard
+              </Button>
             </Link>
             <Link to="/summaries">
-              <Button variant="ghost" size="sm">Summaries</Button>
+              <Button variant="ghost" size="sm" className="rounded-full px-4 hover:bg-white dark:hover:bg-slate-800 transition-all duration-200">
+                Summaries
+              </Button>
             </Link>
             <Link to="/integrations">
-              <Button variant="ghost" size="sm">Integrations</Button>
+              <Button variant="ghost" size="sm" className="rounded-full px-4 hover:bg-white dark:hover:bg-slate-800 transition-all duration-200">
+                Integrations
+              </Button>
             </Link>
             <Link to="/team">
-              <Button variant="ghost" size="sm">Team</Button>
+              <Button variant="ghost" size="sm" className="rounded-full px-4 hover:bg-white dark:hover:bg-slate-800 transition-all duration-200">
+                Team
+              </Button>
             </Link>
           </nav>
 
           {/* User Menu */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <Button
               variant="ghost"
               size="sm"
               onClick={onThemeToggle}
-              className="rounded-full"
+              className="rounded-full h-9 w-9 hover:bg-muted transition-all duration-200"
             >
               {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
 
-            <div className="hidden sm:flex items-center gap-2">
+            <div className="hidden sm:flex items-center gap-3">
               <NetworkStatusBadge />
-              <Badge variant="secondary">
+              <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs font-medium">
                 {userProfile?.plan === 'pro' ? 'Pro Plan' : 'Free Plan'}
               </Badge>
             </div>

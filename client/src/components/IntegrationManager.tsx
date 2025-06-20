@@ -88,6 +88,46 @@ export const IntegrationManager = ({ userId }: IntegrationManagerProps) => {
     },
   });
 
+  // Google Calendar connection mutation
+  const connectGoogleCalendarMutation = useMutation({
+    mutationFn: () => IntegrationService.connectGoogleCalendar(userId),
+    onSuccess: (data) => {
+      const popup = window.open(data.authUrl, '_blank', 'width=600,height=700');
+      
+      if (!popup) {
+        toast({
+          title: "Popup Blocked",
+          description: "Please allow popups for this site and try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Google Calendar Connection",
+        description: "Complete the authorization in the popup window",
+      });
+
+      // Optional: Poll to check if popup is closed manually
+      const checkClosed = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(checkClosed);
+          // Refresh data in case the message was missed
+          setTimeout(() => {
+            queryClient.invalidateQueries({ queryKey: ["/api/integrations", userId] });
+          }, 1000);
+        }
+      }, 1000);
+    },
+    onError: () => {
+      toast({
+        title: "Connection Failed",
+        description: "Unable to connect to Google Calendar. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Toggle integration mutation
   const toggleIntegrationMutation = useMutation({
     mutationFn: ({ id, isConnected }: { id: number; isConnected: boolean }) =>
@@ -153,6 +193,8 @@ export const IntegrationManager = ({ userId }: IntegrationManagerProps) => {
   const handleConnect = async (provider: ProviderKey) => {
     if (provider === "github") {
       connectGitHubMutation.mutate();
+    } else if (provider === "google_calendar") {
+      connectGoogleCalendarMutation.mutate();
     } else {
       toast({
         title: "Coming Soon",
@@ -220,7 +262,7 @@ export const IntegrationManager = ({ userId }: IntegrationManagerProps) => {
           const config = INTEGRATION_PROVIDERS[provider];
           const integration = getIntegrationByProvider(provider);
           const isConnected = integration?.isConnected ?? false;
-          const isAvailable = provider === "github"; // Only GitHub is implemented
+          const isAvailable = provider === "github" || provider === "google_calendar"; // GitHub and Google Calendar are implemented
 
           return (
             <Card key={provider} className="transition-colors hover:bg-muted/50">

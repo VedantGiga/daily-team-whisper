@@ -2,6 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { GitHubService } from "./services/githubService";
+import { SlackService } from "./services/slackService";
+import { GoogleCalendarService } from "./services/googleCalendarService";
 import { 
   insertIntegrationSchema, 
   insertWorkActivitySchema, 
@@ -246,6 +248,366 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Slack Integration Routes
+  
+  // Slack OAuth connection
+  app.get("/api/integrations/slack/connect", async (req, res) => {
+    try {
+      const userId = parseInt(req.query.userId as string) || 1;
+      
+      if (!process.env.SLACK_CLIENT_ID) {
+        return res.status(400).json({ error: "Slack client ID not configured" });
+      }
+
+      const scopes = [
+        'channels:read',
+        'channels:history', 
+        'chat:write',
+        'users:read'
+      ].join(',');
+
+      const state = Buffer.from(JSON.stringify({ userId })).toString("base64");
+      const redirectUri = `${req.protocol}://${req.get('host')}/api/integrations/slack/callback`;
+      
+      const authUrl = `https://slack.com/oauth/v2/authorize?client_id=${process.env.SLACK_CLIENT_ID}&scope=${scopes}&state=${state}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+      
+      res.json({ authUrl });
+    } catch (error) {
+      console.error("Error creating Slack OAuth URL:", error);
+      res.status(500).json({ error: "Failed to create OAuth URL" });
+    }
+  });
+
+  // Slack OAuth callback
+  app.get("/api/integrations/slack/callback", async (req, res) => {
+    try {
+      const { code, state } = req.query;
+      
+      if (!code || !state) {
+        return res.status(400).json({ error: "Missing authorization code or state" });
+      }
+
+      const { userId } = JSON.parse(Buffer.from(state as string, "base64").toString());
+      
+      // Exchange code for access token
+      const tokenResponse = await fetch('https://slack.com/api/oauth.v2.access', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          client_id: process.env.SLACK_CLIENT_ID!,
+          client_secret: process.env.SLACK_CLIENT_SECRET!,
+          code: code.toString(),
+          redirect_uri: `${req.protocol}://${req.get('host')}/api/integrations/slack/callback`
+        })
+      });
+
+      const tokenData = await tokenResponse.json();
+      
+      if (!tokenData.ok) {
+        throw new Error(tokenData.error || 'Failed to exchange code for token');
+      }
+
+      // Check if integration already exists
+      const existingIntegration = await storage.getIntegrationByProvider(userId, 'slack');
+      
+      if (existingIntegration) {
+        await storage.updateIntegration(existingIntegration.id, {
+          isConnected: true,
+          accessToken: tokenData.access_token,
+          metadata: {
+            teamId: tokenData.team?.id,
+            teamName: tokenData.team?.name,
+            scope: tokenData.scope,
+            botUserId: tokenData.bot_user_id
+          },
+          lastSyncAt: new Date(),
+        });
+      } else {
+        await storage.createIntegration({
+          userId,
+          provider: 'slack',
+          isConnected: true,
+          accessToken: tokenData.access_token,
+          metadata: {
+            teamId: tokenData.team?.id,
+            teamName: tokenData.team?.name,
+            scope: tokenData.scope,
+            botUserId: tokenData.bot_user_id
+          },
+          lastSyncAt: new Date(),
+        });
+      }
+
+      res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Slack Connected</title>
+          <style>
+            body { 
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              height: 100vh;
+              margin: 0;
+              background: #f8fafc;
+            }
+            .container {
+              text-align: center;
+              padding: 2rem;
+              background: white;
+              border-radius: 8px;
+              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            }
+            .success {
+              color: #059669;
+              font-size: 1.5rem;
+              margin-bottom: 1rem;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="success">✓ Slack Connected Successfully!</div>
+            <p>You can now close this window and return to AutoBrief.</p>
+          </div>
+          <script>
+            setTimeout(() => {
+              window.close();
+            }, 3000);
+          </script>
+        </body>
+        </html>
+      `);
+    } catch (error) {
+      console.error("Slack OAuth callback error:", error);
+      res.status(500).json({ error: "Failed to connect Slack account" });
+    }
+  });
+
+  // Test Slack configuration
+  app.get("/api/integrations/slack/test", async (req, res) => {
+    try {
+      const configured = !!(process.env.SLACK_CLIENT_ID && process.env.SLACK_CLIENT_SECRET);
+      
+      res.json({
+        configured,
+        clientId: process.env.SLACK_CLIENT_ID ? process.env.SLACK_CLIENT_ID.substring(0, 10) + '...' : null,
+        hasSecret: !!process.env.SLACK_CLIENT_SECRET
+      });
+    } catch (error) {
+      console.error("Error testing Slack configuration:", error);
+      res.status(500).json({ error: "Failed to test configuration" });
+    }
+  });
+
+  // Google Calendar Integration Routes
+  
+  // Google Calendar OAuth connection
+  app.get("/api/integrations/google-calendar/connect", async (req, res) => {
+    try {
+      const userId = parseInt(req.query.userId as string) || 1;
+      
+      if (!process.env.GOOGLE_CLIENT_ID) {
+        return res.status(400).json({ error: "Google Client ID not configured" });
+      }
+
+      const scopes = [
+        'https://www.googleapis.com/auth/calendar.readonly',
+        'https://www.googleapis.com/auth/calendar.events'
+      ].join(' ');
+
+      const state = Buffer.from(JSON.stringify({ userId })).toString("base64");
+      const redirectUri = `${req.protocol}://${req.get('host')}/api/integrations/google-calendar/callback`;
+      
+      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${process.env.GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&response_type=code&state=${state}&access_type=offline&prompt=consent`;
+      
+      res.json({ authUrl });
+    } catch (error) {
+      console.error("Error creating Google Calendar OAuth URL:", error);
+      res.status(500).json({ error: "Failed to create OAuth URL" });
+    }
+  });
+
+  // Google Calendar OAuth callback
+  app.get("/api/integrations/google-calendar/callback", async (req, res) => {
+    try {
+      const { code, state } = req.query;
+      
+      if (!code || !state) {
+        return res.status(400).json({ error: "Missing authorization code or state" });
+      }
+
+      const { userId } = JSON.parse(Buffer.from(state as string, "base64").toString());
+      
+      // Exchange code for access token
+      const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          client_id: process.env.GOOGLE_CLIENT_ID!,
+          client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+          code: code.toString(),
+          grant_type: 'authorization_code',
+          redirect_uri: `${req.protocol}://${req.get('host')}/api/integrations/google-calendar/callback`
+        })
+      });
+
+      const tokenData = await tokenResponse.json();
+      
+      if (tokenData.error) {
+        throw new Error(tokenData.error_description || tokenData.error);
+      }
+
+      // Check if integration already exists
+      const existingIntegration = await storage.getIntegrationByProvider(userId, 'google_calendar');
+      
+      if (existingIntegration) {
+        await storage.updateIntegration(existingIntegration.id, {
+          isConnected: true,
+          accessToken: tokenData.access_token,
+          refreshToken: tokenData.refresh_token,
+          metadata: {
+            scope: tokenData.scope,
+            tokenType: tokenData.token_type,
+            expiresIn: tokenData.expires_in
+          },
+          lastSyncAt: new Date(),
+        });
+      } else {
+        const integration = await storage.createIntegration({
+          userId,
+          provider: 'google_calendar',
+          isConnected: true,
+          accessToken: tokenData.access_token,
+          refreshToken: tokenData.refresh_token,
+          metadata: {
+            scope: tokenData.scope,
+            tokenType: tokenData.token_type,
+            expiresIn: tokenData.expires_in
+          },
+          lastSyncAt: new Date(),
+        });
+
+        // Sync initial data
+        await GoogleCalendarService.syncUserData(integration);
+      }
+
+      res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Google Calendar Connected</title>
+          <style>
+            body { 
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              height: 100vh;
+              margin: 0;
+              background: #f8fafc;
+            }
+            .container {
+              text-align: center;
+              padding: 2rem;
+              background: white;
+              border-radius: 8px;
+              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            }
+            .success {
+              color: #059669;
+              font-size: 1.5rem;
+              margin-bottom: 1rem;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="success">✓ Google Calendar Connected Successfully!</div>
+            <p>You can now close this window and return to AutoBrief.</p>
+          </div>
+          <script>
+            setTimeout(() => {
+              window.close();
+            }, 3000);
+          </script>
+        </body>
+        </html>
+      `);
+    } catch (error) {
+      console.error("Google Calendar OAuth callback error:", error);
+      res.status(500).json({ error: "Failed to connect Google Calendar account" });
+    }
+  });
+
+  // Test Google Calendar configuration
+  app.get("/api/integrations/google-calendar/test", async (req, res) => {
+    try {
+      const configured = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+      
+      res.json({
+        configured,
+        clientId: process.env.GOOGLE_CLIENT_ID ? process.env.GOOGLE_CLIENT_ID.substring(0, 10) + '...' : null,
+        hasSecret: !!process.env.GOOGLE_CLIENT_SECRET
+      });
+    } catch (error) {
+      console.error("Error testing Google Calendar configuration:", error);
+      res.status(500).json({ error: "Failed to test configuration" });
+    }
+  });
+
+  // Get Google Calendar events
+  app.get("/api/integrations/:id/google-calendar/events", async (req, res) => {
+    try {
+      const integrationId = parseInt(req.params.id);
+      const { timeMin, timeMax, calendarId } = req.query;
+      
+      const integration = await storage.getUserIntegrations(1);
+      const targetIntegration = integration.find(i => i.id === integrationId);
+
+      if (!targetIntegration) {
+        return res.status(404).json({ error: "Integration not found" });
+      }
+
+      const events = await GoogleCalendarService.getEvents(
+        targetIntegration,
+        calendarId as string,
+        timeMin as string,
+        timeMax as string
+      );
+      res.json(events);
+    } catch (error) {
+      console.error("Error fetching Google Calendar events:", error);
+      res.status(500).json({ error: "Failed to fetch events" });
+    }
+  });
+
+  // Get Google Calendar calendars
+  app.get("/api/integrations/:id/google-calendar/calendars", async (req, res) => {
+    try {
+      const integrationId = parseInt(req.params.id);
+      
+      const integration = await storage.getUserIntegrations(1);
+      const targetIntegration = integration.find(i => i.id === integrationId);
+
+      if (!targetIntegration) {
+        return res.status(404).json({ error: "Integration not found" });
+      }
+
+      const calendars = await GoogleCalendarService.getCalendars(targetIntegration);
+      res.json(calendars);
+    } catch (error) {
+      console.error("Error fetching Google Calendar calendars:", error);
+      res.status(500).json({ error: "Failed to fetch calendars" });
+    }
+  });
+
   // Work Activities Routes
   
   // Get user's work activities
@@ -365,6 +727,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Perform actual sync based on provider
       if (integration.provider === "github" && integration.isConnected) {
         await GitHubService.syncUserData(integration);
+      } else if (integration.provider === "google_calendar" && integration.isConnected) {
+        await GoogleCalendarService.syncUserData(integration);
       }
       
       // Update lastSyncAt timestamp
