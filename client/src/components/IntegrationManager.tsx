@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { AlertCircle, CheckCircle, Clock, ExternalLink, RefreshCw, Calendar, Github, Mail, Plus } from "lucide-react";
+import { AlertCircle, CheckCircle, Clock, ExternalLink, RefreshCw, Calendar, Plus } from "lucide-react";
+import { SiGithub, SiGooglecalendar, SiSlack } from "react-icons/si";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Integration } from "@shared/schema";
@@ -15,11 +16,11 @@ interface IntegrationManagerProps {
 const getProviderIcon = (provider: string) => {
   switch (provider) {
     case 'google_calendar':
-      return <Calendar className="h-5 w-5" />;
+      return <SiGooglecalendar className="h-5 w-5" />;
     case 'github':
-      return <Github className="h-5 w-5" />;
+      return <SiGithub className="h-5 w-5" />;
     case 'slack':
-      return <Mail className="h-5 w-5" />;
+      return <SiSlack className="h-5 w-5" />;
     default:
       return <CheckCircle className="h-5 w-5" />;
   }
@@ -30,9 +31,9 @@ const getProviderColor = (provider: string) => {
     case 'google_calendar':
       return 'from-blue-500 to-blue-600';
     case 'github':
-      return 'from-gray-700 to-gray-900';
+      return 'from-gray-800 to-black';
     case 'slack':
-      return 'from-purple-500 to-purple-600';
+      return 'from-purple-500 to-purple-700';
     default:
       return 'from-gray-500 to-gray-600';
   }
@@ -57,21 +58,21 @@ const AVAILABLE_INTEGRATIONS = [
     name: 'Google Calendar',
     description: 'Sync calendar events and meetings',
     color: 'from-blue-500 to-blue-600',
-    icon: Calendar,
+    icon: SiGooglecalendar,
   },
   {
     provider: 'github',
     name: 'GitHub',
     description: 'Track commits, pull requests, and issues',
-    color: 'from-gray-700 to-gray-900',
-    icon: Github,
+    color: 'from-gray-800 to-black',
+    icon: SiGithub,
   },
   {
     provider: 'slack',
     name: 'Slack',
     description: 'Import messages and workspace activity',
-    color: 'from-purple-500 to-purple-600',
-    icon: Mail,
+    color: 'from-purple-500 to-purple-700',
+    icon: SiSlack,
   },
 ];
 
