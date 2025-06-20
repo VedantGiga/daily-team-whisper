@@ -44,78 +44,102 @@ export class GoogleCalendarService {
 
   private static async syncRecentEvents(integration: Integration): Promise<void> {
     try {
-      // Get events from the past 30 days
+      // Get events from the past 30 days and next 7 days
       const oneMonthAgo = new Date();
       oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
+      oneMonthAgo.setHours(0, 0, 0, 0); // Start of day
       
-      const now = new Date();
+      const oneWeekFromNow = new Date();
+      oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
+      oneWeekFromNow.setHours(23, 59, 59, 999); // End of day
       
-      console.log(`Syncing calendar events from ${oneMonthAgo.toISOString()} to ${now.toISOString()}`);
+      console.log(`Syncing calendar events from ${oneMonthAgo.toISOString()} to ${oneWeekFromNow.toISOString()}`);
       
-      const events = await this.makeGoogleRequest(
-        `/calendars/primary/events?timeMin=${oneMonthAgo.toISOString()}&timeMax=${now.toISOString()}&orderBy=startTime&singleEvents=true&maxResults=50`,
+      // First, get all calendars
+      const calendars = await this.makeGoogleRequest(
+        `/users/me/calendarList`,
         integration.accessToken!
       );
       
-      console.log(`Found ${events.items ? events.items.length : 0} calendar events`);
-
-      if (events.items) {
-        for (const event of events.items) {
-          console.log(`Processing event: ${event.summary || 'Untitled'}, start: ${event.start?.dateTime || event.start?.date || 'No start time'}`);
-          
-          // Skip events without start time or that are all-day events without proper time
-          if (!event.start?.dateTime) {
-            console.log(`Skipping event ${event.summary || 'Untitled'} - no dateTime (likely all-day event)`);
-            continue;
-          }
-
-          // Check if we already have this event
-          const existingActivity = await this.findExistingActivity(
-            integration.userId, 
-            'calendar_event', 
-            event.id
+      console.log(`Found ${calendars.items ? calendars.items.length : 0} calendars`);
+      
+      let totalEvents = 0;
+      
+      // Check events from all calendars
+      for (const calendar of calendars.items || []) {
+        try {
+          const events = await this.makeGoogleRequest(
+            `/calendars/${encodeURIComponent(calendar.id)}/events?timeMin=${oneMonthAgo.toISOString()}&timeMax=${oneWeekFromNow.toISOString()}&orderBy=startTime&singleEvents=true&maxResults=50`,
+            integration.accessToken!
           );
+          
+          console.log(`Found ${events.items ? events.items.length : 0} events in calendar: ${calendar.summary}`);
+          totalEvents += events.items ? events.items.length : 0;
 
-          if (!existingActivity) {
-            const startTime = new Date(event.start.dateTime);
-            const endTime = event.end?.dateTime ? new Date(event.end.dateTime) : null;
-            const duration = endTime ? Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60)) : null;
-
-            const activity: InsertWorkActivity = {
-              userId: integration.userId,
-              integrationId: integration.id,
-              provider: 'google_calendar',
-              activityType: 'calendar_event',
-              title: event.summary || 'Untitled Event',
-              description: event.description || `Calendar event${duration ? ` (${duration} minutes)` : ''}`,
-              externalId: event.id,
-              timestamp: startTime,
-              metadata: {
-                eventId: event.id,
-                startTime: event.start.dateTime,
-                endTime: event.end?.dateTime,
-                duration: duration,
-                location: event.location,
-                attendees: event.attendees?.map((a: any) => ({
-                  email: a.email,
-                  responseStatus: a.responseStatus
-                })),
-                organizer: event.organizer,
-                htmlLink: event.htmlLink,
-                status: event.status,
-                recurrence: event.recurrence
+          if (events.items) {
+            for (const event of events.items) {
+              console.log(`Processing event: ${event.summary || 'Untitled'} from ${calendar.summary}, start: ${event.start?.dateTime || event.start?.date || 'No start time'}`);
+              
+              // Handle both timed events and all-day events
+              if (!event.start?.dateTime && !event.start?.date) {
+                console.log(`Skipping event ${event.summary || 'Untitled'} - no start time at all`);
+                continue;
               }
-            };
 
-            console.log(`Creating activity for event: ${event.summary}`);
-            await storage.createWorkActivity(activity);
-          } else {
-            console.log(`Activity already exists for event: ${event.summary}`);
+              // Check if we already have this event
+              const existingActivity = await this.findExistingActivity(
+                integration.userId, 
+                'calendar_event', 
+                event.id
+              );
+
+              if (!existingActivity) {
+                // Handle both timed events and all-day events
+                const startTime = new Date(event.start.dateTime || event.start.date);
+                const endTime = event.end?.dateTime ? new Date(event.end.dateTime) : 
+                               event.end?.date ? new Date(event.end.date) : null;
+                const duration = endTime ? Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60)) : null;
+
+                const activity: InsertWorkActivity = {
+                  userId: integration.userId,
+                  integrationId: integration.id,
+                  provider: 'google_calendar',
+                  activityType: 'calendar_event',
+                  title: event.summary || 'Untitled Event',
+                  description: event.description || `Calendar event${duration ? ` (${duration} minutes)` : ''}`,
+                  externalId: event.id,
+                  timestamp: startTime,
+                  metadata: {
+                    eventId: event.id,
+                    startTime: event.start.dateTime || event.start.date,
+                    endTime: event.end?.dateTime || event.end?.date,
+                    duration: duration,
+                    location: event.location,
+                    attendees: event.attendees?.map((a: any) => ({
+                      email: a.email,
+                      responseStatus: a.responseStatus
+                    })),
+                    organizer: event.organizer,
+                    htmlLink: event.htmlLink,
+                    status: event.status,
+                    recurrence: event.recurrence,
+                    calendarName: calendar.summary
+                  }
+                };
+
+                console.log(`Creating activity for event: ${event.summary}`);
+                await storage.createWorkActivity(activity);
+              } else {
+                console.log(`Activity already exists for event: ${event.summary}`);
+              }
+            }
           }
+        } catch (calendarError) {
+          console.error(`Error syncing calendar ${calendar.summary}:`, calendarError);
         }
-      } else {
-        console.log('No events.items found in response');
       }
+
+      console.log(`Total events processed across all calendars: ${totalEvents}`);
 
       // Sync user's calendar list and profile
       await this.syncCalendarList(integration);
@@ -132,22 +156,20 @@ export class GoogleCalendarService {
       
       if (calendars.items) {
         // Update integration with calendar info
-        const existingMetadata = (integration.metadata as any) || {};
         await storage.updateIntegration(integration.id, {
           metadata: {
-            ...existingMetadata,
+            ...integration.metadata,
             calendars: calendars.items.map((cal: any) => ({
               id: cal.id,
-              summary: cal.summary,
+              name: cal.summary,
               primary: cal.primary,
               accessRole: cal.accessRole
-            })),
-            primaryCalendar: calendars.items.find((cal: any) => cal.primary)?.summary
+            }))
           }
         });
       }
     } catch (error) {
-      console.error('Error syncing Google Calendar list:', error);
+      console.error('Error syncing calendar list:', error);
     }
   }
 
@@ -156,8 +178,8 @@ export class GoogleCalendarService {
       throw new Error('No access token available');
     }
 
-    const calendars = await this.makeGoogleRequest('/users/me/calendarList', integration.accessToken);
-    return calendars.items || [];
+    const response = await this.makeGoogleRequest('/users/me/calendarList', integration.accessToken);
+    return response.items || [];
   }
 
   static async getEvents(integration: Integration, calendarId = 'primary', timeMin?: string, timeMax?: string): Promise<any[]> {
@@ -165,21 +187,17 @@ export class GoogleCalendarService {
       throw new Error('No access token available');
     }
 
-    const params = new URLSearchParams({
-      orderBy: 'startTime',
-      singleEvents: 'true',
-      maxResults: '50'
-    });
+    let url = `/calendars/${encodeURIComponent(calendarId)}/events?singleEvents=true&maxResults=50`;
+    
+    if (timeMin) {
+      url += `&timeMin=${timeMin}`;
+    }
+    if (timeMax) {
+      url += `&timeMax=${timeMax}`;
+    }
 
-    if (timeMin) params.append('timeMin', timeMin);
-    if (timeMax) params.append('timeMax', timeMax);
-
-    const events = await this.makeGoogleRequest(
-      `/calendars/${encodeURIComponent(calendarId)}/events?${params.toString()}`,
-      integration.accessToken
-    );
-
-    return events.items || [];
+    const response = await this.makeGoogleRequest(url, integration.accessToken);
+    return response.items || [];
   }
 
   static async createEvent(integration: Integration, eventData: any, calendarId = 'primary'): Promise<any> {
@@ -193,7 +211,7 @@ export class GoogleCalendarService {
         'Authorization': `Bearer ${integration.accessToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(eventData)
+      body: JSON.stringify(eventData),
     });
 
     if (!response.ok) {
@@ -206,9 +224,9 @@ export class GoogleCalendarService {
 
   private static async findExistingActivity(userId: number, activityType: string, externalId: string) {
     const activities = await storage.getUserWorkActivities(userId, 1000);
-    return activities.find(activity => 
-      activity.activityType === activityType && 
-      activity.externalId === externalId
+    return activities.find(a => 
+      a.activityType === activityType && 
+      a.externalId === externalId
     );
   }
 }

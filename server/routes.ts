@@ -609,27 +609,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
       oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
       const now = new Date();
 
-      const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?orderBy=startTime&singleEvents=true&maxResults=50`, {
+      // First, get the list of calendars
+      const calendarsResponse = await fetch(`https://www.googleapis.com/calendar/v3/users/me/calendarList`, {
         headers: {
           'Authorization': `Bearer ${targetIntegration.accessToken}`,
           'Content-Type': 'application/json',
         },
       });
 
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`Google Calendar API error: ${response.status} - ${error}`);
+      if (!calendarsResponse.ok) {
+        const error = await calendarsResponse.text();
+        throw new Error(`Failed to fetch calendars: ${calendarsResponse.status} - ${error}`);
       }
 
-      const events = await response.json();
+      const calendars = await calendarsResponse.json();
+      
+      // Get today's events from all calendars
+      const today = new Date();
+      const tomorrow = new Date(today);
+      tomorrow.setDate(today.getDate() + 1);
+      
+      let allEvents = [];
+      
+      for (const calendar of calendars.items || []) {
+        try {
+          const eventsResponse = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendar.id)}/events?timeMin=${today.toISOString()}&timeMax=${tomorrow.toISOString()}&singleEvents=true&maxResults=50`, {
+            headers: {
+              'Authorization': `Bearer ${targetIntegration.accessToken}`,
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (eventsResponse.ok) {
+            const events = await eventsResponse.json();
+            if (events.items && events.items.length > 0) {
+              allEvents.push(...events.items.map(event => ({
+                ...event,
+                calendarId: calendar.id,
+                calendarName: calendar.summary
+              })));
+            }
+          }
+        } catch (calError) {
+          console.log(`Error fetching events from calendar ${calendar.summary}:`, calError);
+        }
+      }
       
       res.json({
         timeRange: {
-          from: oneYearAgo.toISOString(),
-          to: now.toISOString()
+          from: today.toISOString(),
+          to: tomorrow.toISOString()
         },
-        totalEvents: events.items ? events.items.length : 0,
-        events: events.items || [],
+        totalCalendars: calendars.items ? calendars.items.length : 0,
+        calendars: calendars.items?.map(cal => ({ 
+          id: cal.id, 
+          name: cal.summary, 
+          primary: cal.primary,
+          accessRole: cal.accessRole 
+        })) || [],
+        totalEvents: allEvents.length,
+        events: allEvents,
         debugInfo: {
           hasAccessToken: !!targetIntegration.accessToken,
           integration: {
@@ -642,7 +681,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Error debugging Google Calendar events:", error);
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
     }
   });
 
