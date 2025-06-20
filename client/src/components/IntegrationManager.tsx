@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { AlertCircle, CheckCircle, Clock, ExternalLink, RefreshCw, Trash2 } from "lucide-react";
+import { AlertCircle, CheckCircle, Clock, ExternalLink, RefreshCw, Calendar, Github, Mail, Plus } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { IntegrationService, INTEGRATION_PROVIDERS, type ProviderKey } from "@/lib/integrationService";
+import { motion, AnimatePresence } from "framer-motion";
 import type { Integration } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 
@@ -13,149 +12,74 @@ interface IntegrationManagerProps {
   userId: number;
 }
 
+const getProviderIcon = (provider: string) => {
+  switch (provider) {
+    case 'google_calendar':
+      return <Calendar className="h-5 w-5" />;
+    case 'github':
+      return <Github className="h-5 w-5" />;
+    case 'slack':
+      return <Mail className="h-5 w-5" />;
+    default:
+      return <CheckCircle className="h-5 w-5" />;
+  }
+};
+
+const getProviderColor = (provider: string) => {
+  switch (provider) {
+    case 'google_calendar':
+      return 'from-blue-500 to-blue-600';
+    case 'github':
+      return 'from-gray-700 to-gray-900';
+    case 'slack':
+      return 'from-purple-500 to-purple-600';
+    default:
+      return 'from-gray-500 to-gray-600';
+  }
+};
+
+const formatProviderName = (provider: string) => {
+  switch (provider) {
+    case 'google_calendar':
+      return 'Google Calendar';
+    case 'github':
+      return 'GitHub';
+    case 'slack':
+      return 'Slack';
+    default:
+      return provider;
+  }
+};
+
 export const IntegrationManager = ({ userId }: IntegrationManagerProps) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Listen for OAuth popup messages
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      console.log('Received message:', event.data); // Debug log
-      if (event.data.type === 'GITHUB_AUTH_SUCCESS') {
-        console.log('GitHub auth success, refreshing data...'); // Debug log
-        // Refresh integrations data
-        queryClient.invalidateQueries({ queryKey: ["/api/integrations", userId] });
-        queryClient.invalidateQueries({ queryKey: ["/api/activities", userId] });
-        toast({
-          title: "GitHub Connected!",
-          description: `Successfully connected as @${event.data.username}`,
-        });
-      }
-    };
-
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, [queryClient, userId, toast]);
-
   // Fetch user's integrations
-  const { data: integrations = [], isLoading } = useQuery({
+  const { data: integrations = [], isLoading, refetch } = useQuery({
     queryKey: ["/api/integrations", userId],
-    queryFn: () => IntegrationService.getUserIntegrations(userId),
-  });
-
-  // Connect GitHub mutation
-  const connectGitHubMutation = useMutation({
-    mutationFn: () => IntegrationService.connectGitHub(userId),
-    onSuccess: (data) => {
-      const popup = window.open(
-        data.authUrl, 
-        "github-oauth", 
-        "width=600,height=700,scrollbars=yes,resizable=yes"
-      );
-      
-      // Check if popup was blocked
-      if (!popup) {
-        toast({
-          title: "Popup Blocked",
-          description: "Please allow popups for this site and try again.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      toast({
-        title: "GitHub Connection",
-        description: "Complete the authorization in the popup window",
-      });
-
-      // Optional: Poll to check if popup is closed manually
-      const checkClosed = setInterval(() => {
-        if (popup.closed) {
-          clearInterval(checkClosed);
-          // Refresh data in case the message was missed
-          setTimeout(() => {
-            queryClient.invalidateQueries({ queryKey: ["/api/integrations", userId] });
-          }, 1000);
-        }
-      }, 1000);
-    },
-    onError: () => {
-      toast({
-        title: "Connection Failed",
-        description: "Unable to connect to GitHub. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Google Calendar connection mutation
-  const connectGoogleCalendarMutation = useMutation({
-    mutationFn: () => IntegrationService.connectGoogleCalendar(userId),
-    onSuccess: (data) => {
-      const popup = window.open(data.authUrl, '_blank', 'width=600,height=700');
-      
-      if (!popup) {
-        toast({
-          title: "Popup Blocked",
-          description: "Please allow popups for this site and try again.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      toast({
-        title: "Google Calendar Connection",
-        description: "Complete the authorization in the popup window",
-      });
-
-      // Optional: Poll to check if popup is closed manually
-      const checkClosed = setInterval(() => {
-        if (popup.closed) {
-          clearInterval(checkClosed);
-          // Refresh data in case the message was missed
-          setTimeout(() => {
-            queryClient.invalidateQueries({ queryKey: ["/api/integrations", userId] });
-          }, 1000);
-        }
-      }, 1000);
-    },
-    onError: () => {
-      toast({
-        title: "Connection Failed",
-        description: "Unable to connect to Google Calendar. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Toggle integration mutation
-  const toggleIntegrationMutation = useMutation({
-    mutationFn: ({ id, isConnected }: { id: number; isConnected: boolean }) =>
-      IntegrationService.updateIntegration(id, { isConnected }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/integrations", userId] });
-      toast({
-        title: "Integration Updated",
-        description: "Integration status has been changed",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Update Failed",
-        description: "Unable to update integration status",
-        variant: "destructive",
-      });
+    queryFn: async () => {
+      const response = await fetch(`/api/integrations?userId=${userId}`);
+      if (!response.ok) throw new Error('Failed to fetch integrations');
+      return response.json();
     },
   });
 
   // Sync integration mutation
-  const syncIntegrationMutation = useMutation({
-    mutationFn: (id: number) => IntegrationService.syncIntegration(id),
+  const syncMutation = useMutation({
+    mutationFn: async (integrationId: number) => {
+      const response = await fetch(`/api/integrations/${integrationId}/sync`, {
+        method: 'POST',
+      });
+      if (!response.ok) throw new Error('Failed to sync integration');
+      return response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/integrations", userId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/activities", userId] });
       toast({
         title: "Sync Complete",
-        description: "Integration data has been synced",
+        description: "Integration data has been synchronized",
       });
     },
     onError: () => {
@@ -167,245 +91,256 @@ export const IntegrationManager = ({ userId }: IntegrationManagerProps) => {
     },
   });
 
-  // Delete integration mutation
-  const deleteIntegrationMutation = useMutation({
-    mutationFn: (id: number) => IntegrationService.deleteIntegration(id),
+  const refreshMutation = useMutation({
+    mutationFn: () => refetch(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/integrations", userId] });
       toast({
-        title: "Integration Removed",
-        description: "Integration has been disconnected",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Removal Failed",
-        description: "Unable to remove integration",
-        variant: "destructive",
+        title: "Integrations Refreshed",
+        description: "Latest integration data has been loaded",
       });
     },
   });
 
-  const getIntegrationByProvider = (provider: ProviderKey): Integration | undefined => {
-    return integrations.find((integration) => integration.provider === provider);
-  };
-
-  const handleConnect = async (provider: ProviderKey) => {
-    if (provider === "github") {
-      connectGitHubMutation.mutate();
-    } else if (provider === "google_calendar") {
-      connectGoogleCalendarMutation.mutate();
-    } else {
-      toast({
-        title: "Coming Soon",
-        description: `${INTEGRATION_PROVIDERS[provider].name} integration is coming soon!`,
-      });
-    }
-  };
-
-  const handleToggle = (integration: Integration, enabled: boolean) => {
-    toggleIntegrationMutation.mutate({
-      id: integration.id,
-      isConnected: enabled,
-    });
-  };
-
-  const handleSync = (integration: Integration) => {
-    syncIntegrationMutation.mutate(integration.id);
-  };
-
-  const handleDelete = (integration: Integration) => {
-    if (confirm(`Are you sure you want to disconnect ${integration.provider}?`)) {
-      deleteIntegrationMutation.mutate(integration.id);
-    }
-  };
-
-  const formatLastSync = (date: Date | string | null) => {
-    if (!date) return "Never";
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
-    const diffMinutes = Math.ceil((dateObj.getTime() - Date.now()) / (1000 * 60));
-    return new Intl.RelativeTimeFormat("en", { numeric: "auto" }).format(
-      diffMinutes,
-      "minute"
-    );
-  };
-
   if (isLoading) {
     return (
       <div className="space-y-4">
-        {[...Array(5)].map((_, i) => (
-          <Card key={i} className="animate-pulse">
-            <CardHeader>
-              <div className="h-4 bg-muted rounded w-1/4"></div>
-              <div className="h-3 bg-muted rounded w-1/2"></div>
-            </CardHeader>
-            <CardContent>
-              <div className="h-8 bg-muted rounded w-1/3"></div>
-            </CardContent>
-          </Card>
+        {[...Array(2)].map((_, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.1 }}
+            className="p-4 rounded-lg border bg-card/50"
+          >
+            <div className="flex items-center gap-3">
+              <motion.div 
+                className="h-10 w-10 rounded-full bg-gray-200 dark:bg-gray-700"
+                animate={{ opacity: [0.5, 1, 0.5] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+              />
+              <div className="flex-1 space-y-2">
+                <motion.div 
+                  className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-32"
+                  animate={{ opacity: [0.5, 1, 0.5] }}
+                  transition={{ duration: 1.5, repeat: Infinity, delay: 0.2 }}
+                />
+                <motion.div 
+                  className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-24"
+                  animate={{ opacity: [0.5, 1, 0.5] }}
+                  transition={{ duration: 1.5, repeat: Infinity, delay: 0.4 }}
+                />
+              </div>
+            </div>
+          </motion.div>
         ))}
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">Integrations</h2>
-        <p className="text-muted-foreground">
-          Connect your tools to automatically track your work activities
-        </p>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <h3 className="text-sm font-medium text-muted-foreground">Active Integrations</h3>
+        </motion.div>
+        <motion.div
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => refreshMutation.mutate()}
+            disabled={refreshMutation.isPending}
+            className="h-8 px-2"
+          >
+            <motion.div
+              animate={refreshMutation.isPending ? { rotate: 360 } : {}}
+              transition={{ duration: 1, repeat: refreshMutation.isPending ? Infinity : 0, ease: "linear" }}
+            >
+              <RefreshCw className="h-3 w-3" />
+            </motion.div>
+          </Button>
+        </motion.div>
       </div>
 
-      <div className="grid gap-4">
-        {(Object.keys(INTEGRATION_PROVIDERS) as ProviderKey[]).map((provider) => {
-          const config = INTEGRATION_PROVIDERS[provider];
-          const integration = getIntegrationByProvider(provider);
-          const isConnected = integration?.isConnected ?? false;
-          const isAvailable = provider === "github" || provider === "google_calendar"; // GitHub and Google Calendar are implemented
-
-          return (
-            <Card key={provider} className="transition-colors hover:bg-muted/50">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <div className="flex items-center space-x-3">
-                  <div className={`w-10 h-10 rounded-lg ${config.color} flex items-center justify-center text-white text-lg`}>
-                    {config.icon}
-                  </div>
-                  <div>
-                    <CardTitle className="text-lg">{config.name}</CardTitle>
-                    <CardDescription className="text-sm">
-                      {config.description}
-                    </CardDescription>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  {integration && (
-                    <Badge variant={isConnected ? "default" : "secondary"}>
-                      {isConnected ? (
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                      ) : (
-                        <AlertCircle className="w-3 h-3 mr-1" />
-                      )}
-                      {isConnected ? "Connected" : "Disconnected"}
-                    </Badge>
-                  )}
-                  {!isAvailable && (
-                    <Badge variant="outline">Coming Soon</Badge>
-                  )}
-                </div>
-              </CardHeader>
-
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    {integration ? (
-                      <div className="flex items-center space-x-4">
-                        <div className="flex items-center space-x-2">
-                          <Switch
-                            checked={isConnected}
-                            onCheckedChange={(checked) => handleToggle(integration, checked)}
-                            disabled={toggleIntegrationMutation.isPending}
-                          />
-                          <span className="text-sm text-muted-foreground">
-                            {isConnected ? "Active" : "Paused"}
-                          </span>
-                        </div>
-                        
-                        {isConnected && (
-                          <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                            <Clock className="w-3 h-3" />
-                            <span>Last sync: {formatLastSync(integration.lastSyncAt)}</span>
-                          </div>
-                        )}
-
-                        {integration.providerUsername && (
-                          <Badge variant="outline" className="text-xs">
-                            @{integration.providerUsername}
+      <AnimatePresence mode="wait">
+        {integrations.length === 0 ? (
+          <motion.div 
+            key="empty"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="text-center py-12 text-muted-foreground"
+          >
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+            >
+              <Plus className="h-12 w-12 mx-auto mb-4 opacity-20" />
+            </motion.div>
+            <motion.p 
+              className="text-lg font-medium mb-2"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 }}
+            >
+              No Integrations Yet
+            </motion.p>
+            <motion.p 
+              className="text-sm"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.6 }}
+            >
+              Connect your tools to start tracking work activities
+            </motion.p>
+          </motion.div>
+        ) : (
+          <motion.div 
+            key="integrations"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="space-y-3"
+          >
+            {integrations.map((integration: Integration, index: number) => (
+              <motion.div
+                key={integration.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.1, duration: 0.3 }}
+                whileHover={{ scale: 1.02, y: -2 }}
+                className="group p-4 rounded-lg border bg-card/80 backdrop-blur-sm hover:bg-card transition-all duration-200 shadow-sm hover:shadow-md"
+              >
+                <div className="flex items-center gap-4">
+                  <motion.div 
+                    className={`p-3 rounded-full bg-gradient-to-r ${getProviderColor(integration.provider)} text-white flex-shrink-0`}
+                    whileHover={{ scale: 1.1, rotate: 5 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    {getProviderIcon(integration.provider)}
+                  </motion.div>
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <motion.h4 
+                        className="font-semibold text-foreground"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: index * 0.05 }}
+                      >
+                        {formatProviderName(integration.provider)}
+                      </motion.h4>
+                      <AnimatePresence>
+                        <motion.div
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          exit={{ scale: 0 }}
+                          transition={{ type: "spring", stiffness: 500 }}
+                        >
+                          <Badge 
+                            variant={integration.isConnected ? "default" : "secondary"}
+                            className={integration.isConnected ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300" : ""}
+                          >
+                            {integration.isConnected ? (
+                              <motion.div className="flex items-center gap-1">
+                                <CheckCircle className="h-3 w-3" />
+                                Connected
+                              </motion.div>
+                            ) : (
+                              <motion.div className="flex items-center gap-1">
+                                <AlertCircle className="h-3 w-3" />
+                                Disconnected
+                              </motion.div>
+                            )}
                           </Badge>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-sm text-muted-foreground">
-                        {isAvailable ? "Not connected" : "Available soon"}
-                      </span>
-                    )}
+                        </motion.div>
+                      </AnimatePresence>
+                    </div>
+                    
+                    <motion.div 
+                      className="flex items-center gap-4 text-xs text-muted-foreground"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: index * 0.05 + 0.2 }}
+                    >
+                      {integration.lastSyncAt ? (
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          Last sync: {new Date(integration.lastSyncAt).toLocaleString()}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" />
+                          Never synced
+                        </div>
+                      )}
+                    </motion.div>
                   </div>
-
-                  <div className="flex items-center space-x-2">
-                    {integration ? (
-                      <>
+                  
+                  <motion.div 
+                    className="flex items-center gap-2 flex-shrink-0"
+                    initial={{ opacity: 0, x: 10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.05 + 0.3 }}
+                  >
+                    {integration.isConnected && (
+                      <motion.div
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                      >
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleSync(integration)}
-                          disabled={!isConnected || syncIntegrationMutation.isPending}
+                          onClick={() => syncMutation.mutate(integration.id)}
+                          disabled={syncMutation.isPending}
+                          className="h-8 px-3"
                         >
-                          <RefreshCw className={`w-3 h-3 mr-1 ${syncIntegrationMutation.isPending ? "animate-spin" : ""}`} />
+                          <motion.div
+                            animate={syncMutation.isPending ? { rotate: 360 } : {}}
+                            transition={{ duration: 1, repeat: syncMutation.isPending ? Infinity : 0, ease: "linear" }}
+                            className="mr-1"
+                          >
+                            <RefreshCw className="h-3 w-3" />
+                          </motion.div>
                           Sync
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDelete(integration)}
-                          disabled={deleteIntegrationMutation.isPending}
-                        >
-                          <Trash2 className="w-3 h-3 mr-1" />
-                          Remove
-                        </Button>
-                      </>
-                    ) : (
-                      <Button
-                        onClick={() => handleConnect(provider)}
-                        disabled={!isAvailable || connectGitHubMutation.isPending}
-                        size="sm"
-                      >
-                        <ExternalLink className="w-3 h-3 mr-1" />
-                        {isAvailable ? "Connect" : "Coming Soon"}
-                      </Button>
+                      </motion.div>
                     )}
-                  </div>
+                  </motion.div>
                 </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+              </motion.div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {integrations.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Integration Summary</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-              <div>
-                <div className="text-2xl font-bold text-green-600">
-                  {integrations.filter((i) => i.isConnected).length}
-                </div>
-                <div className="text-sm text-muted-foreground">Active</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-orange-600">
-                  {integrations.filter((i) => !i.isConnected).length}
-                </div>
-                <div className="text-sm text-muted-foreground">Paused</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-blue-600">
-                  {integrations.length}
-                </div>
-                <div className="text-sm text-muted-foreground">Total</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-purple-600">
-                  {Object.keys(INTEGRATION_PROVIDERS).length - integrations.length}
-                </div>
-                <div className="text-sm text-muted-foreground">Available</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Add more integrations button */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+        className="pt-4 border-t border-border/40"
+      >
+        <motion.div
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <Button 
+            variant="outline" 
+            className="w-full border-dashed border-2 h-12 text-muted-foreground hover:text-foreground transition-colors"
+            disabled
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            More integrations coming soon
+          </Button>
+        </motion.div>
+      </motion.div>
     </div>
   );
 };
