@@ -93,6 +93,12 @@ AutoBrief is a full-stack web application that provides AI-powered work summarie
 The application uses a monorepo structure with shared schema definitions and TypeScript configurations for consistency across frontend and backend codebases.
 
 ## Changelog
+- June 20, 2025. Integration setup and OAuth configuration:
+  - Fixed Google Calendar OAuth flow (GET request, proper config checking)
+  - Added comprehensive OAuth setup guide (GOOGLE_OAUTH_SETUP.md)
+  - Database tables successfully created and populated
+  - GitHub integration fully functional with provided API keys
+  - Google Calendar requires redirect URI registration in Google Cloud Console
 - June 20, 2025. UI improvements to landing page navbar:
   - Removed navigation links (Features, How it Works, Reviews) for cleaner design
   - Increased logo size to h-24 w-48 for better visibility and brand presence

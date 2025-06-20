@@ -427,7 +427,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${process.env.GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&response_type=code&state=${state}&access_type=offline&prompt=consent`;
       
-      res.json({ authUrl });
+      console.log(`Google Calendar OAuth URL generated for user ${userId}: ${redirectUri}`);
+      res.json({ authUrl, redirectUri });
     } catch (error) {
       console.error("Error creating Google Calendar OAuth URL:", error);
       res.status(500).json({ error: "Failed to create OAuth URL" });
