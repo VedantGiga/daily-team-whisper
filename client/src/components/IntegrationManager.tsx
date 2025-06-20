@@ -124,6 +124,16 @@ export const IntegrationManager = ({ userId }: IntegrationManagerProps) => {
     },
   });
 
+  // Check Google Calendar configuration
+  const { data: googleCalendarConfig } = useQuery({
+    queryKey: ["/api/integrations/google-calendar/test"],
+    queryFn: async () => {
+      const response = await fetch('/api/integrations/google-calendar/test');
+      if (!response.ok) throw new Error('Failed to check Google Calendar config');
+      return response.json();
+    },
+  });
+
   // Connect GitHub mutation
   const connectGitHubMutation = useMutation({
     mutationFn: async () => {
@@ -177,10 +187,8 @@ export const IntegrationManager = ({ userId }: IntegrationManagerProps) => {
   // Connect Google Calendar mutation
   const connectGoogleCalendarMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch('/api/integrations/google-calendar/connect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId }),
+      const response = await fetch(`/api/integrations/google-calendar/connect?userId=${userId}`, {
+        method: 'GET',
       });
       if (!response.ok) throw new Error('Failed to connect Google Calendar');
       return response.json();
@@ -331,7 +339,8 @@ export const IntegrationManager = ({ userId }: IntegrationManagerProps) => {
         {AVAILABLE_INTEGRATIONS.map((availableIntegration, index) => {
           const connectedIntegration = integrations.find((i: Integration) => i.provider === availableIntegration.provider);
           const isConnected = connectedIntegration?.isConnected || false;
-          const canConnect = availableIntegration.provider === 'github' ? githubConfig?.configured : true;
+          const canConnect = availableIntegration.provider === 'github' ? githubConfig?.configured : 
+                            availableIntegration.provider === 'google_calendar' ? googleCalendarConfig?.configured : true;
           
           return (
             <motion.div
