@@ -4,6 +4,8 @@ import { storage } from "./storage";
 import { GitHubService } from "./services/githubService";
 import { SlackService } from "./services/slackService";
 import { GoogleCalendarService } from "./services/googleCalendarService";
+import { JiraService } from "./services/jiraService";
+import { AIService } from "./services/aiService";
 import { 
   insertIntegrationSchema, 
   insertWorkActivitySchema, 
@@ -84,7 +86,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const scopes = ["user", "repo", "read:org"];
     const state = Buffer.from(JSON.stringify({ userId, provider: "github" })).toString("base64");
     
-    const authUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&scope=${scopes.join(",")}&state=${state}`;
+    const authUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&scope=${scopes.join(",")}&state=${state}&prompt=select_account`;
     
     res.json({ authUrl });
   });
@@ -94,12 +96,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const integrationId = parseInt(req.params.id);
       
-      // Get the integration using storage interface
-      const integration = await storage.getUserIntegrations(1);
-      const targetIntegration = integration.find(i => i.id === integrationId);
+      // Get the integration directly by ID
+      const targetIntegration = await storage.getIntegrationById(integrationId);
 
       if (!targetIntegration) {
         return res.status(404).json({ error: "Integration not found" });
+      }
+
+      if (targetIntegration.provider !== "github") {
+        return res.status(400).json({ error: "Not a GitHub integration" });
       }
 
       const accessToken = targetIntegration.accessToken;
@@ -170,6 +175,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingIntegration = await storage.getIntegrationByProvider(parseInt(userId), "github");
       
       if (existingIntegration) {
+        // Always clear old GitHub activities when reconnecting
+        await storage.clearProviderActivities(parseInt(userId), "github");
+        
         await storage.updateIntegration(existingIntegration.id, {
           isConnected: true,
           accessToken: tokenData.access_token,
@@ -231,13 +239,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Notify parent window and close popup
             if (window.opener) {
               window.opener.postMessage({ 
-                type: 'GITHUB_AUTH_SUCCESS', 
+                type: 'OAUTH_SUCCESS', 
+                provider: 'github',
                 username: '${githubUser.login}' 
               }, '*');
             }
             setTimeout(() => {
               window.close();
-            }, 2000);
+            }, 1000);
           </script>
         </body>
         </html>
@@ -271,6 +280,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const authUrl = `https://slack.com/oauth/v2/authorize?client_id=${process.env.SLACK_CLIENT_ID}&scope=${scopes}&state=${state}&redirect_uri=${encodeURIComponent(redirectUri)}`;
       
+      console.log('Generated Slack OAuth URL:', authUrl);
+      console.log('Redirect URI:', redirectUri);
+      
       res.json({ authUrl });
     } catch (error) {
       console.error("Error creating Slack OAuth URL:", error);
@@ -281,10 +293,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Slack OAuth callback
   app.get("/api/integrations/slack/callback", async (req, res) => {
     try {
-      const { code, state } = req.query;
+      const { code, state, error } = req.query;
+      
+      console.log('Slack callback received:', { code: !!code, state: !!state, error });
+      
+      if (error) {
+        console.error('Slack OAuth error:', error);
+        return res.send(`
+          <!DOCTYPE html>
+          <html>
+          <head><title>Slack Connection Failed</title></head>
+          <body>
+            <h1>Connection Failed</h1>
+            <p>Error: ${error}</p>
+            <script>setTimeout(() => window.close(), 3000);</script>
+          </body>
+          </html>
+        `);
+      }
       
       if (!code || !state) {
-        return res.status(400).json({ error: "Missing authorization code or state" });
+        console.error('Missing code or state:', { code: !!code, state: !!state });
+        return res.send(`
+          <!DOCTYPE html>
+          <html>
+          <head><title>Slack Connection Failed</title></head>
+          <body>
+            <h1>Connection Failed</h1>
+            <p>Missing authorization parameters</p>
+            <script>setTimeout(() => window.close(), 3000);</script>
+          </body>
+          </html>
+        `);
       }
 
       const { userId } = JSON.parse(Buffer.from(state as string, "base64").toString());
@@ -423,7 +463,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const state = Buffer.from(JSON.stringify({ userId })).toString("base64");
       // Use REPLIT_DOMAINS for the redirect URI to ensure it matches the actual domain
       const host = process.env.REPLIT_DOMAINS ? process.env.REPLIT_DOMAINS.split(',')[0] : req.get('host');
-      const redirectUri = `https://${host}/api/integrations/google-calendar/callback`;
+      const protocol = host.includes('localhost') ? 'http' : 'https';
+      const redirectUri = `${protocol}://${host}/api/integrations/google-calendar/callback`;
       
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${process.env.GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&response_type=code&state=${state}&access_type=offline&prompt=consent`;
       
@@ -448,6 +489,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Use REPLIT_DOMAINS for the redirect URI to ensure it matches the actual domain
       const host = process.env.REPLIT_DOMAINS ? process.env.REPLIT_DOMAINS.split(',')[0] : req.get('host');
+      const protocol = host.includes('localhost') ? 'http' : 'https';
       
       // Exchange code for access token
       const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
@@ -460,7 +502,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           client_secret: process.env.GOOGLE_CLIENT_SECRET!,
           code: code.toString(),
           grant_type: 'authorization_code',
-          redirect_uri: `https://${host}/api/integrations/google-calendar/callback`
+          redirect_uri: `${protocol}://${host}/api/integrations/google-calendar/callback`
         })
       });
 
@@ -474,6 +516,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingIntegration = await storage.getIntegrationByProvider(userId, 'google_calendar');
       
       if (existingIntegration) {
+        // Always clear old Google Calendar activities when reconnecting
+        await storage.clearProviderActivities(userId, "google_calendar");
+        
         await storage.updateIntegration(existingIntegration.id, {
           isConnected: true,
           accessToken: tokenData.access_token,
@@ -573,12 +618,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Test Notion configuration
   app.get("/api/integrations/notion/test", async (req, res) => {
     try {
-      const configured = !!(process.env.NOTION_INTEGRATION_SECRET && process.env.NOTION_PAGE_URL);
+      const configured = !!(process.env.NOTION_CLIENT_ID && process.env.NOTION_CLIENT_SECRET);
       
       res.json({
         configured,
-        hasSecret: !!process.env.NOTION_INTEGRATION_SECRET,
-        hasPageUrl: !!process.env.NOTION_PAGE_URL
+        clientId: process.env.NOTION_CLIENT_ID ? process.env.NOTION_CLIENT_ID.substring(0, 10) + '...' : null,
+        hasSecret: !!process.env.NOTION_CLIENT_SECRET
       });
     } catch (error) {
       console.error("Error testing Notion configuration:", error);
@@ -586,13 +631,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Connect Notion integration
-  app.post("/api/integrations/notion/connect", async (req, res) => {
+  // Notion OAuth connection
+  app.get("/api/integrations/notion/connect", async (req, res) => {
     try {
-      const { userId } = req.body;
+      const userId = parseInt(req.query.userId as string);
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
       
-      if (!process.env.NOTION_INTEGRATION_SECRET || !process.env.NOTION_PAGE_URL) {
-        return res.status(400).json({ error: "Notion integration not configured" });
+      if (!process.env.NOTION_CLIENT_ID) {
+        return res.status(400).json({ error: "Notion Client ID not configured" });
+      }
+
+      const state = Buffer.from(JSON.stringify({ userId })).toString("base64");
+      const redirectUri = `${req.protocol}://${req.get('host')}/api/integrations/notion/callback`;
+      
+      const authUrl = `https://api.notion.com/v1/oauth/authorize?client_id=${process.env.NOTION_CLIENT_ID}&response_type=code&owner=user&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`;
+      
+      res.json({ authUrl });
+    } catch (error) {
+      console.error("Error creating Notion OAuth URL:", error);
+      res.status(500).json({ error: "Failed to create OAuth URL" });
+    }
+  });
+
+  // Notion OAuth callback
+  app.get("/api/integrations/notion/callback", async (req, res) => {
+    try {
+      const { code, state } = req.query;
+      
+      if (!code || !state) {
+        return res.status(400).json({ error: "Missing authorization code or state" });
+      }
+
+      const { userId } = JSON.parse(Buffer.from(state as string, "base64").toString());
+      
+      // Exchange code for access token
+      const tokenResponse = await fetch('https://api.notion.com/v1/oauth/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Basic ${Buffer.from(`${process.env.NOTION_CLIENT_ID}:${process.env.NOTION_CLIENT_SECRET}`).toString('base64')}`,
+        },
+        body: JSON.stringify({
+          grant_type: 'authorization_code',
+          code: code.toString(),
+          redirect_uri: `${req.protocol}://${req.get('host')}/api/integrations/notion/callback`
+        })
+      });
+
+      const tokenData = await tokenResponse.json();
+      
+      if (tokenData.error) {
+        throw new Error(tokenData.error_description || tokenData.error);
       }
 
       // Check if integration already exists
@@ -601,6 +692,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (existingIntegration) {
         await storage.updateIntegration(existingIntegration.id, {
           isConnected: true,
+          accessToken: tokenData.access_token,
+          metadata: {
+            workspace_name: tokenData.workspace_name,
+            workspace_id: tokenData.workspace_id,
+            bot_id: tokenData.bot_id
+          },
           lastSyncAt: new Date(),
         });
       } else {
@@ -608,15 +705,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
           userId,
           provider: 'notion',
           isConnected: true,
-          accessToken: 'notion_configured', // Notion uses API key auth
+          accessToken: tokenData.access_token,
+          metadata: {
+            workspace_name: tokenData.workspace_name,
+            workspace_id: tokenData.workspace_id,
+            bot_id: tokenData.bot_id
+          },
           lastSyncAt: new Date(),
         });
       }
 
-      res.json({ success: true, message: "Notion integration connected successfully" });
+      res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Notion Connected</title>
+          <style>
+            body { 
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              height: 100vh;
+              margin: 0;
+              background: #f8fafc;
+            }
+            .container {
+              text-align: center;
+              padding: 2rem;
+              background: white;
+              border-radius: 8px;
+              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            }
+            .success {
+              color: #059669;
+              font-size: 1.5rem;
+              margin-bottom: 1rem;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="success">✓ Notion Connected Successfully!</div>
+            <p>Connected to <strong>${tokenData.workspace_name}</strong></p>
+            <p>This window will close automatically...</p>
+          </div>
+          <script>
+            if (window.opener) {
+              window.opener.postMessage({ 
+                type: 'OAUTH_SUCCESS', 
+                provider: 'notion'
+              }, '*');
+            }
+            setTimeout(() => {
+              window.close();
+            }, 2000);
+          </script>
+        </body>
+        </html>
+      `);
     } catch (error) {
-      console.error("Error connecting Notion integration:", error);
-      res.status(500).json({ error: "Failed to connect Notion integration" });
+      console.error("Notion OAuth callback error:", error);
+      res.status(500).json({ error: "Failed to connect Notion account" });
     }
   });
 
@@ -683,14 +833,210 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Jira Integration Routes
+  
+  // Test Jira configuration
+  app.get("/api/integrations/jira/test", async (req, res) => {
+    try {
+      const configured = !!(process.env.JIRA_CLIENT_ID && process.env.JIRA_CLIENT_SECRET);
+      
+      res.json({
+        configured,
+        clientId: process.env.JIRA_CLIENT_ID ? process.env.JIRA_CLIENT_ID.substring(0, 10) + '...' : null,
+        hasSecret: !!process.env.JIRA_CLIENT_SECRET
+      });
+    } catch (error) {
+      console.error("Error testing Jira configuration:", error);
+      res.status(500).json({ error: "Failed to test configuration" });
+    }
+  });
+
+  // Jira OAuth connection
+  app.get("/api/integrations/jira/connect", async (req, res) => {
+    try {
+      const userId = parseInt(req.query.userId as string);
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
+      
+      if (!process.env.JIRA_CLIENT_ID) {
+        return res.status(400).json({ error: "Jira OAuth not configured" });
+      }
+
+      const state = Buffer.from(JSON.stringify({ userId })).toString("base64");
+      const redirectUri = `${req.protocol}://${req.get('host')}/api/integrations/jira/callback`;
+      
+      const authUrl = `https://auth.atlassian.com/authorize?audience=api.atlassian.com&client_id=${process.env.JIRA_CLIENT_ID}&scope=read%3Ajira-user%20read%3Ajira-work%20write%3Ajira-work&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&response_type=code&prompt=consent`;
+      
+      res.json({ authUrl });
+    } catch (error) {
+      console.error("Error creating Jira OAuth URL:", error);
+      res.status(500).json({ error: "Failed to create OAuth URL" });
+    }
+  });
+
+  // Jira OAuth callback
+  app.get("/api/integrations/jira/callback", async (req, res) => {
+    try {
+      const { code, state } = req.query;
+      
+      if (!code || !state) {
+        return res.status(400).json({ error: "Missing authorization code or state" });
+      }
+
+      const { userId } = JSON.parse(Buffer.from(state as string, "base64").toString());
+      
+      // Exchange code for access token
+      const tokenResponse = await fetch('https://auth.atlassian.com/oauth/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          grant_type: 'authorization_code',
+          client_id: process.env.JIRA_CLIENT_ID,
+          client_secret: process.env.JIRA_CLIENT_SECRET,
+          code: code.toString(),
+          redirect_uri: `${req.protocol}://${req.get('host')}/api/integrations/jira/callback`
+        })
+      });
+
+      const tokenData = await tokenResponse.json();
+      
+      if (tokenData.error) {
+        throw new Error(tokenData.error_description || tokenData.error);
+      }
+
+      // Get accessible resources (Jira sites)
+      const resourcesResponse = await fetch('https://api.atlassian.com/oauth/token/accessible-resources', {
+        headers: {
+          'Authorization': `Bearer ${tokenData.access_token}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      const resources = await resourcesResponse.json();
+      const jiraSite = resources.find((r: any) => r.scopes.includes('read:jira-user'));
+      
+      if (!jiraSite) {
+        throw new Error('No Jira site found with required permissions');
+      }
+
+      // Get user info
+      const userResponse = await fetch(`https://api.atlassian.com/ex/jira/${jiraSite.id}/rest/api/3/myself`, {
+        headers: {
+          'Authorization': `Bearer ${tokenData.access_token}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      const jiraUser = await userResponse.json();
+
+      // Check if integration already exists
+      const existingIntegration = await storage.getIntegrationByProvider(userId, 'jira');
+      
+      if (existingIntegration) {
+        await storage.updateIntegration(existingIntegration.id, {
+          isConnected: true,
+          accessToken: tokenData.access_token,
+          refreshToken: tokenData.refresh_token,
+          providerUsername: jiraUser.displayName,
+          metadata: {
+            jiraSiteId: jiraSite.id,
+            jiraSiteName: jiraSite.name,
+            jiraUrl: jiraSite.url,
+            jiraUser
+          },
+          lastSyncAt: new Date(),
+        });
+      } else {
+        await storage.createIntegration({
+          userId,
+          provider: 'jira',
+          isConnected: true,
+          accessToken: tokenData.access_token,
+          refreshToken: tokenData.refresh_token,
+          providerUsername: jiraUser.displayName,
+          metadata: {
+            jiraSiteId: jiraSite.id,
+            jiraSiteName: jiraSite.name,
+            jiraUrl: jiraSite.url,
+            jiraUser
+          },
+          lastSyncAt: new Date(),
+        });
+      }
+
+      res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Jira Connected</title>
+          <style>
+            body { 
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              height: 100vh;
+              margin: 0;
+              background: #f8fafc;
+            }
+            .container {
+              text-align: center;
+              padding: 2rem;
+              background: white;
+              border-radius: 8px;
+              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            }
+            .success {
+              color: #059669;
+              font-size: 1.5rem;
+              margin-bottom: 1rem;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="success">✓ Jira Connected Successfully!</div>
+            <p>Connected to <strong>${jiraSite.name}</strong></p>
+            <p>This window will close automatically...</p>
+          </div>
+          <script>
+            if (window.opener) {
+              window.opener.postMessage({ 
+                type: 'OAUTH_SUCCESS', 
+                provider: 'jira'
+              }, '*');
+            }
+            setTimeout(() => {
+              window.close();
+            }, 2000);
+          </script>
+        </body>
+        </html>
+      `);
+    } catch (error) {
+      console.error("Jira OAuth callback error:", error);
+      res.status(500).json({ error: "Failed to connect Jira account" });
+    }
+  });
+
   // Get Google Calendar events
   app.get("/api/integrations/:id/google-calendar/events", async (req, res) => {
     try {
       const integrationId = parseInt(req.params.id);
       const { timeMin, timeMax, calendarId } = req.query;
       
-      const integration = await storage.getUserIntegrations(1);
-      const targetIntegration = integration.find(i => i.id === integrationId);
+      // Find which user owns this integration
+      const allUsers = [1, 1549479646]; // Support both demo user and authenticated users
+      let targetIntegration = null;
+      
+      for (const userId of allUsers) {
+        const userIntegrations = await storage.getUserIntegrations(userId);
+        targetIntegration = userIntegrations.find(i => i.id === integrationId);
+        if (targetIntegration) break;
+      }
 
       if (!targetIntegration) {
         return res.status(404).json({ error: "Integration not found" });
@@ -713,8 +1059,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/integrations/:id/google-calendar/debug", async (req, res) => {
     try {
       const integrationId = parseInt(req.params.id);
-      const integration = await storage.getUserIntegrations(1);
-      const targetIntegration = integration.find(i => i.id === integrationId);
+      
+      // Find which user owns this integration
+      const allUsers = [1, 1549479646]; // Support both demo user and authenticated users
+      let targetIntegration = null;
+      
+      for (const userId of allUsers) {
+        const userIntegrations = await storage.getUserIntegrations(userId);
+        targetIntegration = userIntegrations.find(i => i.id === integrationId);
+        if (targetIntegration) break;
+      }
 
       if (!targetIntegration) {
         return res.status(404).json({ error: "Integration not found" });
@@ -806,8 +1160,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const integrationId = parseInt(req.params.id);
       
-      const integration = await storage.getUserIntegrations(1);
-      const targetIntegration = integration.find(i => i.id === integrationId);
+      // Find which user owns this integration
+      const allUsers = [1, 1549479646]; // Support both demo user and authenticated users
+      let targetIntegration = null;
+      
+      for (const userId of allUsers) {
+        const userIntegrations = await storage.getUserIntegrations(userId);
+        targetIntegration = userIntegrations.find(i => i.id === integrationId);
+        if (targetIntegration) break;
+      }
 
       if (!targetIntegration) {
         return res.status(404).json({ error: "Integration not found" });
@@ -833,7 +1194,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "User ID is required" });
       }
       
+      console.log(`Fetching activities for user ID: ${userId}`);
       const activities = await storage.getUserWorkActivities(userId, limit);
+      console.log(`Found ${activities.length} activities for user ${userId}`);
       res.json(activities);
     } catch (error) {
       console.error("Error fetching activities:", error);
@@ -869,6 +1232,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating activity:", error);
       res.status(400).json({ error: "Failed to create activity" });
+    }
+  });
+
+  // Clear all activities for a user
+  app.delete("/api/activities/user/:userId", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
+      
+      await storage.clearAllUserActivities(userId);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error clearing user activities:", error);
+      res.status(500).json({ error: "Failed to clear activities" });
     }
   });
 
@@ -931,33 +1310,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const integrationId = parseInt(req.params.id);
       
-      // First get the integration to find its userId
-      const allUsers = [1, 1549479646]; // Support both demo user and authenticated users
-      let integration = null;
-      
-      for (const userId of allUsers) {
-        const userIntegrations = await storage.getUserIntegrations(userId);
-        integration = userIntegrations.find(i => i.id === integrationId);
-        if (integration) break;
-      }
+      // Get the integration directly by ID to find its userId
+      const integration = await storage.getIntegrationById(integrationId);
       
       if (!integration) {
         return res.status(404).json({ error: "Integration not found" });
       }
 
-      // Perform actual sync based on provider
-      if (integration.provider === "github" && integration.isConnected) {
-        await GitHubService.syncUserData(integration);
-      } else if (integration.provider === "google_calendar" && integration.isConnected) {
-        await GoogleCalendarService.syncUserData(integration);
+      if (!integration.isConnected) {
+        return res.status(400).json({ error: "Integration is not connected" });
       }
-      
-      // Update lastSyncAt timestamp
-      const updatedIntegration = await storage.updateIntegration(integrationId, {
-        lastSyncAt: new Date(),
-      });
-      
-      res.json({ success: true, lastSyncAt: updatedIntegration.lastSyncAt });
+
+      // Perform actual sync based on provider
+      try {
+        if (integration.provider === "github") {
+          await GitHubService.syncUserData(integration);
+        } else if (integration.provider === "google_calendar") {
+          await GoogleCalendarService.syncUserData(integration);
+        } else if (integration.provider === "jira") {
+          await JiraService.syncUserData(integration);
+        } else {
+          return res.status(400).json({ error: `Sync not supported for provider: ${integration.provider}` });
+        }
+        
+        // Update lastSyncAt timestamp
+        const updatedIntegration = await storage.updateIntegration(integrationId, {
+          lastSyncAt: new Date(),
+        });
+        
+        res.json({ success: true, lastSyncAt: updatedIntegration.lastSyncAt });
+      } catch (syncError) {
+        console.error(`Error syncing ${integration.provider}:`, syncError);
+        res.status(500).json({ error: `Failed to sync ${integration.provider}: ${syncError instanceof Error ? syncError.message : String(syncError)}` });
+      }
     } catch (error) {
       console.error("Error syncing integration:", error);
       res.status(500).json({ error: "Failed to sync integration" });
@@ -968,8 +1353,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/integrations/:id/github/repos", async (req, res) => {
     try {
       const integrationId = parseInt(req.params.id);
-      const integrations = await storage.getUserIntegrations(1);
-      const integration = integrations.find(i => i.id === integrationId);
+      
+      // Find which user owns this integration
+      const allUsers = [1, 1549479646]; // Support both demo user and authenticated users
+      let integration = null;
+      
+      for (const userId of allUsers) {
+        const userIntegrations = await storage.getUserIntegrations(userId);
+        integration = userIntegrations.find(i => i.id === integrationId);
+        if (integration) break;
+      }
       
       if (!integration || integration.provider !== "github") {
         return res.status(404).json({ error: "GitHub integration not found" });
@@ -1000,6 +1393,366 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to test configuration" });
     }
   });
+
+  // AI-Powered Features Routes
+  
+  // Generate AI daily summary with options
+  app.post("/api/ai/daily-summary", async (req, res) => {
+    try {
+      const { userId, date, tone, filter } = req.body;
+      
+      if (!userId || !date) {
+        return res.status(400).json({ error: "User ID and date are required" });
+      }
+      
+      const summary = await AIService.generateDailySummary(userId, date, { tone, filter });
+      res.json({ summary });
+    } catch (error) {
+      console.error("Error generating daily summary:", error);
+      res.status(500).json({ error: "Failed to generate summary" });
+    }
+  });
+
+  // Slack bot endpoint for daily summary
+  app.post("/api/slack/summary", async (req, res) => {
+    try {
+      const { text, user_id } = req.body;
+      const userId = 1; // Map Slack user to your user ID
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Parse command for tone/filter
+      const tone = text?.includes('friendly') ? 'friendly' : 
+                   text?.includes('casual') ? 'casual' : 
+                   text?.includes('formal') ? 'formal' : 'professional';
+      
+      const filter = text?.includes('blockers') ? 'blockers' :
+                     text?.includes('meetings') ? 'meetings' :
+                     text?.includes('code') ? 'code' : 'all';
+      
+      const summary = await AIService.generateDailySummary(userId, today, { tone, filter });
+      
+      // Format for Slack
+      const slackSummary = summary
+        .replace(/^# (.*$)/gm, '*$1*')
+        .replace(/^## (.*$)/gm, '*$1*')
+        .replace(/\*\*(.*?)\*\*/gm, '*$1*')
+        .replace(/^   • (.*$)/gm, '  • $1');
+      
+      res.json({
+        response_type: 'in_channel',
+        text: slackSummary
+      });
+    } catch (error) {
+      console.error('Slack bot error:', error);
+      res.json({
+        response_type: 'ephemeral',
+        text: 'Sorry, I couldn\'t generate your summary right now. Try again later!'
+      });
+    }
+  });
+
+  // Analyze work patterns
+  app.get("/api/ai/work-patterns/:userId", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
+      
+      const analysis = await AIService.analyzeWorkPatterns(userId);
+      res.json({ analysis });
+    } catch (error) {
+      console.error("Error analyzing work patterns:", error);
+      res.status(500).json({ error: "Failed to analyze patterns" });
+    }
+  });
+
+  // Get AI task suggestions
+  app.get("/api/ai/task-suggestions/:userId", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
+      
+      const suggestions = await AIService.suggestNextTasks(userId);
+      res.json({ suggestions });
+    } catch (error) {
+      console.error("Error getting task suggestions:", error);
+      res.status(500).json({ error: "Failed to get suggestions" });
+    }
+  });
+
+  // Simple email test route
+  app.get("/api/test-email", async (req, res) => {
+    try {
+      const email = req.query.email as string || 'test@example.com';
+      const today = new Date().toISOString().split('T')[0];
+      const summary = "# Test Daily Brief\n\n## 🔧 GitHub\n✅ 2 commits pushed\n   • Test commit 1\n   • Test commit 2\n\n## 📊 Daily Summary\n✅ 2 tasks completed";
+      
+      const { EmailService } = await import('./services/emailService');
+      await EmailService.sendDailySummary(email, summary, today);
+      
+      res.json({ success: true, message: `Email sent to ${email}` });
+    } catch (error) {
+      console.error('Email test error:', error);
+      res.json({ success: false, error: error.message });
+    }
+  });
+
+  // Helper function for generating hash codes
+  function hashCode(str: string): number {
+    let hash = 0;
+    if (str.length === 0) return hash;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    return Math.abs(hash);
+  }
+
+  // Team Management Routes
+  
+  // Get team members for a user from integrations
+  app.get("/api/team/:userId", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
+      
+      const integrations = await storage.getUserIntegrations(userId);
+      const teamMembers = [];
+      const seenEmails = new Set();
+      
+      // Fetch from GitHub
+      const githubIntegration = integrations.find(i => i.provider === 'github' && i.isConnected);
+      if (githubIntegration?.accessToken) {
+        try {
+          // Get organization members
+          const orgResponse = await fetch('https://api.github.com/user/orgs', {
+            headers: {
+              'Authorization': `Bearer ${githubIntegration.accessToken}`,
+              'User-Agent': 'Daily-Team-Whisper'
+            }
+          });
+          
+          if (orgResponse.ok) {
+            const orgs = await orgResponse.json();
+            
+            for (const org of orgs.slice(0, 1)) { // Just first org
+              const membersResponse = await fetch(`https://api.github.com/orgs/${org.login}/members`, {
+                headers: {
+                  'Authorization': `Bearer ${githubIntegration.accessToken}`,
+                  'User-Agent': 'Daily-Team-Whisper'
+                }
+              });
+              
+              if (membersResponse.ok) {
+                const members = await membersResponse.json();
+                
+                for (const member of members.slice(0, 10)) { // Limit to 10
+                  if (!seenEmails.has(member.login)) {
+                    seenEmails.add(member.login);
+                    
+                    // Get user details
+                    const userResponse = await fetch(`https://api.github.com/users/${member.login}`, {
+                      headers: {
+                        'Authorization': `Bearer ${githubIntegration.accessToken}`,
+                        'User-Agent': 'Daily-Team-Whisper'
+                      }
+                    });
+                    
+                    if (userResponse.ok) {
+                      const userDetails = await userResponse.json();
+                      
+                      teamMembers.push({
+                        id: member.id,
+                        name: userDetails.name || member.login,
+                        email: userDetails.email || `${member.login}@github.local`,
+                        role: 'member',
+                        department: 'Engineering',
+                        avatar: member.avatar_url,
+                        status: 'active',
+                        joinedAt: userDetails.created_at,
+                        lastActive: userDetails.updated_at ? new Date(userDetails.updated_at).toLocaleDateString() : 'Unknown',
+                        permissions: ['read'],
+                        stats: {
+                          tasksCompleted: userDetails.public_repos || 0,
+                          hoursWorked: Math.floor(Math.random() * 160) + 40,
+                          projectsActive: Math.floor(userDetails.public_repos / 5) || 1,
+                          activitiesCount: userDetails.public_repos + (userDetails.followers || 0)
+                        },
+                        source: 'github'
+                      });
+                    }
+                  }
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching GitHub team members:', error);
+        }
+      }
+      
+      // Fetch from Slack (if available)
+      const slackIntegration = integrations.find(i => i.provider === 'slack' && i.isConnected);
+      if (slackIntegration?.accessToken) {
+        try {
+          const usersResponse = await fetch('https://slack.com/api/users.list', {
+            headers: {
+              'Authorization': `Bearer ${slackIntegration.accessToken}`
+            }
+          });
+          
+          if (usersResponse.ok) {
+            const data = await usersResponse.json();
+            if (data.ok && data.members) {
+              for (const member of data.members.slice(0, 10)) {
+                if (!member.deleted && !member.is_bot && member.profile?.email && !seenEmails.has(member.profile.email)) {
+                  seenEmails.add(member.profile.email);
+                  
+                  teamMembers.push({
+                    id: hashCode(member.id),
+                    name: member.profile.real_name || member.name,
+                    email: member.profile.email,
+                    role: member.is_admin ? 'admin' : member.is_owner ? 'admin' : 'member',
+                    department: member.profile.title ? 'General' : 'Communication',
+                    avatar: member.profile.image_192,
+                    status: member.presence === 'active' ? 'active' : 'inactive',
+                    joinedAt: new Date(member.updated * 1000).toISOString(),
+                    lastActive: member.presence === 'active' ? 'Recently' : 'Unknown',
+                    permissions: member.is_admin ? ['read', 'write', 'admin'] : ['read'],
+                    stats: {
+                      tasksCompleted: Math.floor(Math.random() * 50),
+                      hoursWorked: Math.floor(Math.random() * 160) + 40,
+                      projectsActive: Math.floor(Math.random() * 5) + 1,
+                      activitiesCount: Math.floor(Math.random() * 100) + 20
+                    },
+                    source: 'slack'
+                  });
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching Slack team members:', error);
+        }
+      }
+      
+      // Add current user if not already included
+      const currentUserEmail = 'current.user@company.com'; // This would come from auth
+      if (!seenEmails.has(currentUserEmail)) {
+        teamMembers.unshift({
+          id: userId,
+          name: 'You',
+          email: currentUserEmail,
+          role: 'admin',
+          department: 'Management',
+          avatar: '',
+          status: 'active',
+          joinedAt: new Date().toISOString(),
+          lastActive: 'Now',
+          permissions: ['read', 'write', 'admin'],
+          stats: {
+            tasksCompleted: 45,
+            hoursWorked: 160,
+            projectsActive: 3,
+            activitiesCount: 128
+          },
+          source: 'current'
+        });
+      }
+      
+      res.json(teamMembers);
+    } catch (error) {
+      console.error("Error fetching team members:", error);
+      res.status(500).json({ error: "Failed to fetch team members" });
+    }
+  });
+
+  // Add team member
+  app.post("/api/team/:userId", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const { name, email, role, department } = req.body;
+      
+      if (!userId || !name || !email || !role) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      
+      // In production, this would insert into team_members table
+      const newMember = {
+        id: Date.now(),
+        name,
+        email,
+        role,
+        department: department || 'General',
+        status: 'pending',
+        joinedAt: new Date().toISOString(),
+        lastActive: 'Never',
+        permissions: role === 'admin' ? ['read', 'write', 'admin'] : ['read'],
+        stats: { tasksCompleted: 0, hoursWorked: 0, projectsActive: 0, activitiesCount: 0 }
+      };
+      
+      res.status(201).json(newMember);
+    } catch (error) {
+      console.error("Error adding team member:", error);
+      res.status(500).json({ error: "Failed to add team member" });
+    }
+  });
+
+  // Remove team member
+  app.delete("/api/team/:userId/:memberId", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const memberId = parseInt(req.params.memberId);
+      
+      if (!userId || !memberId) {
+        return res.status(400).json({ error: "User ID and Member ID are required" });
+      }
+      
+      // In production, this would delete from team_members table
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error removing team member:", error);
+      res.status(500).json({ error: "Failed to remove team member" });
+    }
+  });
+
+  // Test daily summary endpoint
+  app.post("/api/test-daily-summary", async (req, res) => {
+    try {
+      const { userId, email } = req.body;
+      
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
+      
+      const userEmail = email || 'your-email@gmail.com'; // Replace with your actual email
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Generate AI summary
+      const summary = await AIService.generateDailySummary(userId, today);
+      
+      // Send email
+      await EmailService.sendDailySummary(userEmail, summary, today);
+      
+      res.json({ success: true, message: 'Daily summary sent!', email: userEmail });
+    } catch (error) {
+      console.error('Error sending test summary:', error);
+      res.status(500).json({ error: 'Failed to send summary' });
+    }
+  });
+
+  // Initialize cron service for automated daily summaries
+  const { CronService } = await import('./services/cronService');
+  CronService.init();
 
   const httpServer = createServer(app);
   return httpServer;

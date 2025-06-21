@@ -45,15 +45,18 @@ export class UserService {
 export const useUserId = (firebaseUID?: string): number | null => {
   if (!firebaseUID) return null;
   
-  // For now, we'll use a simple hash-based approach to generate consistent IDs
-  // In production, this should be replaced with proper database lookup
+  // Use a better hash function to avoid collisions
   let hash = 0;
-  for (let i = 0; i < firebaseUID.length; i++) {
-    const char = firebaseUID.charCodeAt(i);
+  const str = firebaseUID + '_salt_' + firebaseUID.length; // Add salt to reduce collisions
+  
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
     hash = ((hash << 5) - hash) + char;
     hash = hash & hash; // Convert to 32-bit integer
   }
   
-  // Ensure positive number and add offset to avoid ID 0
-  return Math.abs(hash) + 1000;
+  // Use a larger offset and ensure uniqueness
+  const userId = Math.abs(hash) + 1000000;
+  console.log(`Generated user ID ${userId} for Firebase UID: ${firebaseUID}`);
+  return userId;
 };

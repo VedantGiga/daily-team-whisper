@@ -1,28 +1,28 @@
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar } from '@/components/ui/calendar';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { DashboardHeader } from '@/components/DashboardHeader';
 import { 
-  Calendar as CalendarIcon, 
+  Brain,
+  Sparkles,
+  RefreshCw,
   FileText, 
-  Download, 
-  Search, 
-  Filter,
-  TrendingUp,
   Clock,
-  GitBranch,
   MessageSquare,
   CheckCircle,
   AlertCircle,
-  BarChart3
+  Download,
+  Search,
+  Calendar
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { exportToPDF, exportToCSV } from '@/lib/exportUtils';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
-import { useQuery } from '@tanstack/react-query';
+import { useUserId } from '@/lib/userService';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { useToast } from '@/hooks/use-toast';
 
 interface Summary {
   id: number;
@@ -38,178 +38,239 @@ interface Summary {
 }
 
 const Summaries = () => {
-  const { currentUser } = useAuth();
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterBy, setFilterBy] = useState('all');
-  const [viewMode, setViewMode] = useState<'calendar' | 'list'>('list');
-
-  const handleDateSelect = (date: Date | undefined) => {
-    if (date) {
-      setSelectedDate(date);
+  const { toast } = useToast();
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('darkMode') === 'true' || document.documentElement.classList.contains('dark');
     }
+    return false;
+  });
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const { currentUser } = useAuth();
+  const userId = useUserId(currentUser?.uid);
+
+  const toggleTheme = () => {
+    const newMode = !isDarkMode;
+    setIsDarkMode(newMode);
+    localStorage.setItem('darkMode', newMode.toString());
+    document.documentElement.classList.toggle('dark', newMode);
   };
 
   // Fetch summaries from API
   const { data: summaries = [], isLoading } = useQuery({
-    queryKey: ['/api/summaries', currentUser?.uid],
-    enabled: !!currentUser
+    queryKey: ['/api/summaries', userId],
+    queryFn: async () => {
+      if (!userId) return [];
+      const response = await fetch(`/api/summaries?userId=${userId}`);
+      if (!response.ok) throw new Error('Failed to fetch summaries');
+      return response.json();
+    },
+    enabled: !!userId,
   });
 
-  const mockSummaries: Summary[] = [
-    {
-      id: 1,
-      date: '2025-01-18',
-      title: 'Friday Sprint Wrap-up',
-      tasksCompleted: 8,
-      blockers: 1,
-      meetings: 3,
-      summary: 'Completed the user authentication flow and fixed critical bugs in the payment system. Had productive discussions about the upcoming Q1 roadmap.',
-      integrations: ['GitHub', 'Slack', 'Jira'],
-      mood: 'productive',
-      highlights: [
-        'Merged 3 pull requests',
-        'Resolved database performance issue',
-        'Completed Q1 planning session'
-      ]
+  // Generate AI daily summary
+  const generateSummaryMutation = useMutation({
+    mutationFn: async (date: string) => {
+      const response = await fetch('/api/ai/daily-summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, date }),
+      });
+      if (!response.ok) throw new Error('Failed to generate summary');
+      return response.json();
     },
-    {
-      id: 2,
-      date: '2025-01-17',
-      title: 'Mid-week Progress',
-      tasksCompleted: 5,
-      blockers: 2,
-      meetings: 2,
-      summary: 'Focused on frontend improvements and team collaboration. Encountered some deployment issues that required additional investigation.',
-      integrations: ['GitHub', 'Notion'],
-      mood: 'challenging',
-      highlights: [
-        'Updated UI components',
-        'Documented API endpoints',
-        'Identified deployment bottleneck'
-      ]
+    onSuccess: () => {
+      toast({
+        title: "Summary Generated",
+        description: "AI daily summary has been created successfully",
+      });
     },
-    {
-      id: 3,
-      date: '2025-01-16',
-      title: 'Week Kickoff',
-      tasksCompleted: 6,
-      blockers: 0,
-      meetings: 4,
-      summary: 'Strong start to the week with clear objectives set. Team alignment on priorities and good progress on core features.',
-      integrations: ['GitHub', 'Slack', 'Google Calendar'],
-      mood: 'balanced',
-      highlights: [
-        'Set weekly goals',
-        'Completed code review',
-        'Planned feature architecture'
-      ]
-    }
-  ];
-
-  const filteredSummaries = mockSummaries.filter(summary => {
-    if (searchTerm && !summary.title.toLowerCase().includes(searchTerm.toLowerCase()) && 
-        !summary.summary.toLowerCase().includes(searchTerm.toLowerCase())) {
-      return false;
-    }
-    if (filterBy !== 'all' && !summary.integrations.includes(filterBy)) {
-      return false;
-    }
-    return true;
+    onError: () => {
+      toast({
+        title: "Generation Failed",
+        description: "Unable to generate AI summary. Please try again.",
+        variant: "destructive",
+      });
+    },
   });
 
-  const getMoodColor = (mood: string) => {
-    switch (mood) {
-      case 'productive': return 'bg-green-100 text-green-800';
-      case 'challenging': return 'bg-red-100 text-red-800';
-      case 'balanced': return 'bg-blue-100 text-blue-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
 
-  const getMoodIcon = (mood: string) => {
-    switch (mood) {
-      case 'productive': return <TrendingUp className="h-4 w-4" />;
-      case 'challenging': return <AlertCircle className="h-4 w-4" />;
-      case 'balanced': return <CheckCircle className="h-4 w-4" />;
-      default: return <Clock className="h-4 w-4" />;
-    }
-  };
 
   return (
     <div className="min-h-screen bg-background">
+      <DashboardHeader onThemeToggle={toggleTheme} isDarkMode={isDarkMode} />
+      
       <div className="container mx-auto px-6 py-8">
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">Daily Summaries</h1>
-            <p className="text-muted-foreground">
-              Your AI-generated work summaries and insights
-            </p>
-          </div>
-          <div className="flex gap-2 mt-4 md:mt-0">
-            <Button variant="outline" size="sm">
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
-            <Button>
-              <FileText className="h-4 w-4 mr-2" />
-              Generate Summary
-            </Button>
-          </div>
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="text-center mb-8"
+        >
+          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-purple-600 via-blue-600 to-teal-500 bg-clip-text text-transparent">
+            Daily Summaries
+          </h1>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            AI-powered insights and summaries of your daily work activities
+          </p>
+        </motion.div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <FileText className="h-8 w-8 text-blue-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">Total Summaries</p>
-                  <p className="text-2xl font-bold">24</p>
+        {/* AI Summary Generator */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="mb-8"
+        >
+          <Card className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 border-purple-200 dark:border-purple-700">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Brain className="h-6 w-6 text-purple-600" />
+                Generate AI Summary
+              </CardTitle>
+              <CardDescription>
+                Create intelligent summaries of your daily work activities
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-4">
+                <div className="flex-1">
+                  <Input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="max-w-xs"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => generateSummaryMutation.mutate(selectedDate)}
+                    disabled={generateSummaryMutation.isPending}
+                    className="bg-purple-600 hover:bg-purple-700"
+                  >
+                    {generateSummaryMutation.isPending ? (
+                      <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Sparkles className="h-4 w-4 mr-2" />
+                    )}
+                    Generate Summary
+                  </Button>
+                  {summaries.length > 0 && (
+                    <>
+                      <Button
+                        variant="outline"
+                        onClick={() => exportToCSV(summaries, 'daily-summaries')}
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        CSV
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => exportToPDF(summaries, 'Daily Summaries Report')}
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        PDF
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
+              <AnimatePresence>
+                {generateSummaryMutation.data && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mt-6 p-6 bg-white dark:bg-gray-800 rounded-lg border border-purple-200 dark:border-purple-700"
+                  >
+                    <div className="flex items-start gap-3 mb-4">
+                      <Brain className="h-5 w-5 text-purple-600 mt-0.5" />
+                      <div>
+                        <h3 className="font-semibold text-purple-900 dark:text-purple-100">AI Generated Summary</h3>
+                        <p className="text-sm text-purple-700 dark:text-purple-300">
+                          {new Date(selectedDate).toLocaleDateString('en-US', { 
+                            weekday: 'long', 
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric' 
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="prose prose-sm max-w-none text-gray-700 dark:text-gray-300">
+                      <div 
+                        className="leading-relaxed whitespace-pre-line"
+                        dangerouslySetInnerHTML={{
+                          __html: generateSummaryMutation.data.summary
+                            .replace(/^# (.*$)/gm, '<h1 class="text-lg font-bold mb-2 text-purple-900 dark:text-purple-100">$1</h1>')
+                            .replace(/^## (.*$)/gm, '<h2 class="text-md font-semibold mb-2 mt-4 text-gray-800 dark:text-gray-200">$1</h2>')
+                            .replace(/^\*\*(.*?)\*\*/gm, '<strong class="font-semibold">$1</strong>')
+                            .replace(/^   • (.*$)/gm, '<div class="ml-4 text-sm text-gray-600 dark:text-gray-400">• $1</div>')
+                            .replace(/\n/g, '<br/>')
+                        }}
+                      />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <CheckCircle className="h-8 w-8 text-green-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">Tasks Completed</p>
-                  <p className="text-2xl font-bold">156</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <MessageSquare className="h-8 w-8 text-purple-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">Meetings</p>
-                  <p className="text-2xl font-bold">32</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <AlertCircle className="h-8 w-8 text-red-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">Blockers</p>
-                  <p className="text-2xl font-bold">8</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        </motion.div>
 
-        {/* Filters and Search */}
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <div className="relative flex-1">
+        {/* Today's Summary */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="mb-8"
+        >
+          <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 border-green-200 dark:border-green-700">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-6 w-6 text-green-600" />
+                Today's Summary
+              </CardTitle>
+              <CardDescription>
+                {new Date().toLocaleDateString('en-US', { 
+                  weekday: 'long', 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {summaries.find(s => s.date === new Date().toISOString().split('T')[0]) ? (
+                <div className="prose prose-sm max-w-none text-gray-700 dark:text-gray-300">
+                  <p>{summaries.find(s => s.date === new Date().toISOString().split('T')[0])?.summary}</p>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Calendar className="h-12 w-12 text-green-400 mx-auto mb-4" />
+                  <p className="text-green-700 dark:text-green-300 mb-4">No summary for today yet</p>
+                  <Button 
+                    onClick={() => generateSummaryMutation.mutate(new Date().toISOString().split('T')[0])}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Generate Today's Summary
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Search */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="mb-6"
+        >
+          <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
               placeholder="Search summaries..."
@@ -218,136 +279,121 @@ const Summaries = () => {
               className="pl-10"
             />
           </div>
-          <Select value={filterBy} onValueChange={setFilterBy}>
-            <SelectTrigger className="w-full md:w-48">
-              <SelectValue placeholder="Filter by integration" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Integrations</SelectItem>
-              <SelectItem value="GitHub">GitHub</SelectItem>
-              <SelectItem value="Slack">Slack</SelectItem>
-              <SelectItem value="Jira">Jira</SelectItem>
-              <SelectItem value="Notion">Notion</SelectItem>
-              <SelectItem value="Google Calendar">Google Calendar</SelectItem>
-            </SelectContent>
-          </Select>
-          <div className="flex gap-2">
-            <Button
-              variant={viewMode === 'list' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setViewMode('list')}
-            >
-              <FileText className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === 'calendar' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setViewMode('calendar')}
-            >
-              <CalendarIcon className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
+        </motion.div>
 
-        {/* Content */}
-        <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as 'calendar' | 'list')}>
-          <TabsContent value="list" className="space-y-4">
-            {filteredSummaries.map((summary) => (
-              <Card key={summary.id} className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="text-lg">{summary.title}</CardTitle>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {format(new Date(summary.date), 'MMMM d, yyyy')}
-                      </p>
-                    </div>
-                    <Badge className={`${getMoodColor(summary.mood)} border-0`}>
-                      {getMoodIcon(summary.mood)}
-                      <span className="ml-1 capitalize">{summary.mood}</span>
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground mb-4">{summary.summary}</p>
-                  
-                  {/* Metrics */}
-                  <div className="flex gap-4 mb-4">
-                    <div className="flex items-center gap-1">
-                      <CheckCircle className="h-4 w-4 text-green-600" />
-                      <span className="text-sm">{summary.tasksCompleted} tasks</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <MessageSquare className="h-4 w-4 text-blue-600" />
-                      <span className="text-sm">{summary.meetings} meetings</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <AlertCircle className="h-4 w-4 text-red-600" />
-                      <span className="text-sm">{summary.blockers} blockers</span>
+        {/* Previous Summaries */}
+        <div>
+          <h2 className="text-2xl font-bold mb-6">Previous Summaries</h2>
+
+          {(() => {
+            const filteredSummaries = summaries.filter(summary => 
+              !searchTerm || 
+              summary.summary.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              new Date(summary.date).toLocaleDateString().toLowerCase().includes(searchTerm.toLowerCase())
+            );
+            
+            return isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.1 }}
+                  className="p-6 rounded-lg border bg-card/50"
+                >
+                  <div className="space-y-4">
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 animate-pulse" />
+                    <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2 animate-pulse" />
+                    <div className="space-y-2">
+                      <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                      <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-5/6 animate-pulse" />
                     </div>
                   </div>
-
-                  {/* Highlights */}
-                  <div className="mb-4">
-                    <p className="text-sm font-medium mb-2">Key Highlights:</p>
-                    <ul className="text-sm text-muted-foreground space-y-1">
-                      {summary.highlights.map((highlight, index) => (
-                        <li key={index} className="flex items-start gap-2">
-                          <span className="text-blue-600 mt-1">•</span>
-                          {highlight}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  {/* Integrations */}
-                  <div className="flex gap-2">
-                    {summary.integrations.map((integration) => (
-                      <Badge key={integration} variant="outline" className="text-xs">
-                        {integration}
-                      </Badge>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </TabsContent>
-
-          <TabsContent value="calendar">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <Card className="lg:col-span-1">
-                <CardHeader>
-                  <CardTitle>Calendar</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={handleDateSelect}
-                    className="rounded-md border"
-                  />
-                </CardContent>
-              </Card>
-              
-              <Card className="lg:col-span-2">
-                <CardHeader>
-                  <CardTitle>
-                    Summary for {selectedDate && format(selectedDate, 'MMMM d, yyyy')}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-12 text-muted-foreground">
-                    <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No summary available for this date</p>
-                    <Button variant="outline" className="mt-4">
-                      Generate Summary
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+                </motion.div>
+              ))}
             </div>
-          </TabsContent>
-        </Tabs>
+          ) : filteredSummaries.length === 0 && summaries.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="text-center py-16"
+            >
+              <FileText className="h-16 w-16 text-muted-foreground/30 mx-auto mb-6" />
+              <h3 className="text-xl font-semibold mb-2">No Summaries Yet</h3>
+              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                Generate your first AI summary using the tool above, or your daily summaries will appear here as you complete work activities.
+              </p>
+              <Button 
+                onClick={() => generateSummaryMutation.mutate(selectedDate)}
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+              >
+                <Sparkles className="h-4 w-4 mr-2" />
+                Generate First Summary
+              </Button>
+            </motion.div>
+          ) : filteredSummaries.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="text-center py-16"
+            >
+              <Search className="h-16 w-16 text-muted-foreground/30 mx-auto mb-6" />
+              <h3 className="text-xl font-semibold mb-2">No Summaries Found</h3>
+              <p className="text-muted-foreground mb-6">Try a different search term</p>
+            </motion.div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredSummaries.map((summary: any, index: number) => (
+                <motion.div
+                  key={summary.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  whileHover={{ scale: 1.02, y: -5 }}
+                >
+                  <Card className="h-full shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-lg font-semibold">
+                          {new Date(summary.date).toLocaleDateString('en-US', {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric'
+                          })}
+                        </CardTitle>
+                        <Badge variant="secondary" className="text-xs">
+                          <Clock className="h-3 w-3 mr-1" />
+                          {new Date(summary.createdAt).toLocaleDateString()}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
+                        {summary.summary}
+                      </p>
+                      <div className="grid grid-cols-3 gap-4 text-center">
+                        <div>
+                          <p className="text-lg font-bold text-green-600">{summary.tasksCompleted}</p>
+                          <p className="text-xs text-muted-foreground">Tasks</p>
+                        </div>
+                        <div>
+                          <p className="text-lg font-bold text-blue-600">{summary.meetingsAttended}</p>
+                          <p className="text-xs text-muted-foreground">Meetings</p>
+                        </div>
+                        <div>
+                          <p className="text-lg font-bold text-purple-600">{summary.codeCommits}</p>
+                          <p className="text-xs text-muted-foreground">Commits</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+          )
+          })()}
+        </div>
       </div>
     </div>
   );

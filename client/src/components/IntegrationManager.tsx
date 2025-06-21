@@ -2,8 +2,17 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { AlertCircle, CheckCircle, Clock, ExternalLink, RefreshCw, Calendar, Plus } from "lucide-react";
-import { SiGithub, SiGooglecalendar, SiSlack, SiNotion } from "react-icons/si";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { AlertCircle, CheckCircle, Clock, ExternalLink, RefreshCw, Calendar, Plus, X } from "lucide-react";
+import { SiGithub, SiGooglecalendar, SiSlack, SiNotion, SiJira } from "react-icons/si";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Integration } from "@shared/schema";
@@ -74,6 +83,13 @@ const AVAILABLE_INTEGRATIONS = [
     icon: SiGithub,
   },
   {
+    provider: 'jira',
+    name: 'Jira',
+    description: 'Track issues, tasks, and project progress',
+    color: 'from-blue-600 to-blue-700',
+    icon: SiJira,
+  },
+  {
     provider: 'notion',
     name: 'Notion',
     description: 'Create databases and sync work activities',
@@ -92,6 +108,7 @@ const AVAILABLE_INTEGRATIONS = [
 export const IntegrationManager = ({ userId }: IntegrationManagerProps) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
 
   // Handle OAuth callback messages
   useEffect(() => {
@@ -157,13 +174,31 @@ export const IntegrationManager = ({ userId }: IntegrationManagerProps) => {
     },
   });
 
+  // Check Jira configuration
+  const { data: jiraConfig } = useQuery({
+    queryKey: ["/api/integrations/jira/test"],
+    queryFn: async () => {
+      const response = await fetch('/api/integrations/jira/test');
+      if (!response.ok) throw new Error('Failed to check Jira config');
+      return response.json();
+    },
+  });
+
+  // Check Slack configuration
+  const { data: slackConfig } = useQuery({
+    queryKey: ["/api/integrations/slack/test"],
+    queryFn: async () => {
+      const response = await fetch('/api/integrations/slack/test');
+      if (!response.ok) throw new Error('Failed to check Slack config');
+      return response.json();
+    },
+  });
+
   // Connect GitHub mutation
   const connectGitHubMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch('/api/integrations/github/connect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId }),
+      const response = await fetch(`/api/integrations/github/connect?userId=${userId}`, {
+        method: 'GET',
       });
       if (!response.ok) throw new Error('Failed to connect GitHub');
       return response.json();
@@ -193,7 +228,11 @@ export const IntegrationManager = ({ userId }: IntegrationManagerProps) => {
         if (popup.closed) {
           clearInterval(checkClosed);
           setTimeout(() => {
+            // Force refresh all queries when connecting
+            queryClient.removeQueries({ queryKey: ["/api/integrations", userId] });
+            queryClient.removeQueries({ queryKey: ["/api/activities", userId] });
             queryClient.invalidateQueries({ queryKey: ["/api/integrations", userId] });
+            queryClient.invalidateQueries({ queryKey: ["/api/activities", userId] });
           }, 1000);
         }
       }, 1000);
@@ -254,51 +293,191 @@ export const IntegrationManager = ({ userId }: IntegrationManagerProps) => {
   // Connect Notion mutation
   const connectNotionMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch('/api/integrations/notion/connect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId }),
+      const response = await fetch(`/api/integrations/notion/connect?userId=${userId}`, {
+        method: 'GET',
       });
       if (!response.ok) throw new Error('Failed to connect Notion');
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/integrations", userId] });
+    onSuccess: (data) => {
+      const popup = window.open(data.authUrl, '_blank', 'width=600,height=700');
+      
+      if (!popup) {
+        toast({
+          title: "Popup Blocked",
+          description: "Please allow popups for this site and try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       toast({
-        title: "Notion Connected",
-        description: "Notion integration connected successfully",
+        title: "Notion Connection",
+        description: "Complete the authorization in the popup window",
       });
+
+      const checkClosed = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(checkClosed);
+          setTimeout(() => {
+            queryClient.invalidateQueries({ queryKey: ["/api/integrations", userId] });
+          }, 1000);
+        }
+      }, 1000);
     },
     onError: () => {
       toast({
         title: "Connection Failed",
-        description: "Unable to connect to Notion. Please check your configuration.",
+        description: "Unable to connect to Notion. Please try again.",
         variant: "destructive",
       });
     },
   });
 
-  // Sync integration mutation
-  const syncMutation = useMutation({
-    mutationFn: async (integrationId: number) => {
+  // Connect Jira mutation
+  const connectJiraMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/integrations/jira/connect?userId=${userId}`, {
+        method: 'GET',
+      });
+      if (!response.ok) throw new Error('Failed to connect Jira');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      const popup = window.open(data.authUrl, '_blank', 'width=600,height=700');
+      
+      if (!popup) {
+        toast({
+          title: "Popup Blocked",
+          description: "Please allow popups for this site and try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Jira Connection",
+        description: "Complete the authorization in the popup window",
+      });
+
+      const checkClosed = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(checkClosed);
+          setTimeout(() => {
+            queryClient.invalidateQueries({ queryKey: ["/api/integrations", userId] });
+          }, 1000);
+        }
+      }, 1000);
+    },
+    onError: () => {
+      toast({
+        title: "Connection Failed",
+        description: "Unable to connect to Jira. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Connect Slack mutation
+  const connectSlackMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/integrations/slack/connect?userId=${userId}`, {
+        method: 'GET',
+      });
+      if (!response.ok) throw new Error('Failed to connect Slack');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      const popup = window.open(data.authUrl, '_blank', 'width=600,height=700');
+      
+      if (!popup) {
+        toast({
+          title: "Popup Blocked",
+          description: "Please allow popups for this site and try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Slack Connection",
+        description: "Complete the authorization in the popup window",
+      });
+
+      const checkClosed = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(checkClosed);
+          setTimeout(() => {
+            queryClient.invalidateQueries({ queryKey: ["/api/integrations", userId] });
+          }, 1000);
+        }
+      }, 1000);
+    },
+    onError: () => {
+      toast({
+        title: "Connection Failed",
+        description: "Unable to connect to Slack. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Track syncing state for each integration
+  const [syncingIntegrations, setSyncingIntegrations] = useState<Set<number>>(new Set());
+
+  // Sync integration function
+  const syncIntegration = async (integrationId: number) => {
+    setSyncingIntegrations(prev => new Set(prev).add(integrationId));
+    try {
       const response = await fetch(`/api/integrations/${integrationId}/sync`, {
         method: 'POST',
       });
       if (!response.ok) throw new Error('Failed to sync integration');
-      return response.json();
-    },
-    onSuccess: () => {
+      
       queryClient.invalidateQueries({ queryKey: ["/api/integrations", userId] });
       queryClient.invalidateQueries({ queryKey: ["/api/activities", userId] });
       toast({
         title: "Sync Complete",
         description: "Integration data has been synchronized",
       });
-    },
-    onError: () => {
+    } catch (error) {
       toast({
         title: "Sync Failed",
         description: "Unable to sync integration data",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncingIntegrations(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(integrationId);
+        return newSet;
+      });
+    }
+  };
+
+  // Disconnect integration mutation
+  const disconnectMutation = useMutation({
+    mutationFn: async (integrationId: number) => {
+      const response = await fetch(`/api/integrations/${integrationId}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) throw new Error('Failed to disconnect integration');
+    },
+    onSuccess: () => {
+      // Force refresh all queries
+      queryClient.removeQueries({ queryKey: ["/api/integrations", userId] });
+      queryClient.removeQueries({ queryKey: ["/api/activities", userId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/integrations", userId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/activities", userId] });
+      toast({
+        title: "Integration Disconnected",
+        description: "Successfully disconnected from service",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Disconnect Failed",
+        description: "Unable to disconnect integration",
         variant: "destructive",
       });
     },
@@ -391,7 +570,9 @@ export const IntegrationManager = ({ userId }: IntegrationManagerProps) => {
           const isConnected = connectedIntegration?.isConnected || false;
           const canConnect = availableIntegration.provider === 'github' ? githubConfig?.configured : 
                             availableIntegration.provider === 'google_calendar' ? googleCalendarConfig?.configured :
-                            availableIntegration.provider === 'notion' ? notionConfig?.configured : true;
+                            availableIntegration.provider === 'notion' ? notionConfig?.configured :
+                            availableIntegration.provider === 'jira' ? jiraConfig?.configured :
+                            availableIntegration.provider === 'slack' ? slackConfig?.configured : true;
           
           return (
             <motion.div
@@ -477,27 +658,43 @@ export const IntegrationManager = ({ userId }: IntegrationManagerProps) => {
                   transition={{ delay: index * 0.05 + 0.3 }}
                 >
                   {isConnected ? (
-                    <motion.div
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                    >
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => connectedIntegration && syncMutation.mutate(connectedIntegration.id)}
-                        disabled={syncMutation.isPending}
-                        className="h-8 px-3"
+                    <div className="flex items-center gap-2">
+                      <motion.div
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
                       >
-                        <motion.div
-                          animate={syncMutation.isPending ? { rotate: 360 } : {}}
-                          transition={{ duration: 1, repeat: syncMutation.isPending ? Infinity : 0, ease: "linear" }}
-                          className="mr-1"
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => connectedIntegration && syncIntegration(connectedIntegration.id)}
+                          disabled={syncingIntegrations.has(connectedIntegration?.id || 0)}
+                          className="h-8 px-3"
                         >
-                          <RefreshCw className="h-3 w-3" />
-                        </motion.div>
-                        Sync
-                      </Button>
-                    </motion.div>
+                          <motion.div
+                            animate={syncingIntegrations.has(connectedIntegration?.id || 0) ? { rotate: 360 } : {}}
+                            transition={{ duration: 1, repeat: syncingIntegrations.has(connectedIntegration?.id || 0) ? Infinity : 0, ease: "linear" }}
+                            className="mr-1"
+                          >
+                            <RefreshCw className="h-3 w-3" />
+                          </motion.div>
+                          Sync
+                        </Button>
+                      </motion.div>
+                      <motion.div
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                      >
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => connectedIntegration && disconnectMutation.mutate(connectedIntegration.id)}
+                          disabled={disconnectMutation.isPending}
+                          className="h-8 px-3"
+                        >
+                          Disconnect
+                        </Button>
+                      </motion.div>
+                    </div>
                   ) : (
                     <motion.div
                       whileHover={{ scale: 1.1 }}
@@ -512,6 +709,10 @@ export const IntegrationManager = ({ userId }: IntegrationManagerProps) => {
                             connectGoogleCalendarMutation.mutate();
                           } else if (availableIntegration.provider === 'notion') {
                             connectNotionMutation.mutate();
+                          } else if (availableIntegration.provider === 'jira') {
+                            connectJiraMutation.mutate();
+                          } else if (availableIntegration.provider === 'slack') {
+                            connectSlackMutation.mutate();
                           }
                         }}
                         disabled={
@@ -519,12 +720,12 @@ export const IntegrationManager = ({ userId }: IntegrationManagerProps) => {
                           connectGitHubMutation.isPending || 
                           connectGoogleCalendarMutation.isPending ||
                           connectNotionMutation.isPending ||
-                          availableIntegration.provider === 'slack'
+                          connectJiraMutation.isPending ||
+                          connectSlackMutation.isPending
                         }
                         className="h-8 px-3"
                       >
-                        {availableIntegration.provider === 'slack' ? 'Coming Soon' : 
-                         !canConnect ? 'Not Configured' : 'Connect'}
+                        {!canConnect ? 'Not Configured' : 'Connect'}
                       </Button>
                     </motion.div>
                   )}
@@ -556,6 +757,8 @@ export const IntegrationManager = ({ userId }: IntegrationManagerProps) => {
           </Button>
         </motion.div>
       </motion.div>
+
+
     </div>
   );
 };

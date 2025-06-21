@@ -24,6 +24,7 @@ export interface IStorage {
   
   // Integration operations
   getUserIntegrations(userId: number): Promise<Integration[]>;
+  getIntegrationById(id: number): Promise<Integration | undefined>;
   getIntegrationByProvider(userId: number, provider: string): Promise<Integration | undefined>;
   createIntegration(integration: InsertIntegration): Promise<Integration>;
   updateIntegration(id: number, updates: Partial<Integration>): Promise<Integration>;
@@ -33,6 +34,9 @@ export interface IStorage {
   createWorkActivity(activity: InsertWorkActivity): Promise<WorkActivity>;
   getUserWorkActivities(userId: number, limit?: number): Promise<WorkActivity[]>;
   getWorkActivitiesByDateRange(userId: number, startDate: Date, endDate: Date): Promise<WorkActivity[]>;
+  clearIntegrationActivities(integrationId: number): Promise<void>;
+  clearProviderActivities(userId: number, provider: string): Promise<void>;
+  clearAllUserActivities(userId: number): Promise<void>;
   
   // Daily summary operations
   createDailySummary(summary: InsertDailySummary): Promise<DailySummary>;
@@ -215,6 +219,10 @@ export class MemStorage implements IStorage {
     );
   }
 
+  async getIntegrationById(id: number): Promise<Integration | undefined> {
+    return this.integrations.get(id);
+  }
+
   async getIntegrationByProvider(userId: number, provider: string): Promise<Integration | undefined> {
     return Array.from(this.integrations.values()).find(
       (integration) => integration.userId === userId && integration.provider === provider
@@ -299,6 +307,31 @@ export class MemStorage implements IStorage {
       .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
   }
 
+  async clearIntegrationActivities(integrationId: number): Promise<void> {
+    Array.from(this.workActivities.entries()).forEach(([activityId, activity]) => {
+      if (activity.integrationId === integrationId) {
+        this.workActivities.delete(activityId);
+      }
+    });
+  }
+
+  async clearProviderActivities(userId: number, provider: string): Promise<void> {
+    Array.from(this.workActivities.entries()).forEach(([activityId, activity]) => {
+      if (activity.userId === userId && activity.provider === provider) {
+        this.workActivities.delete(activityId);
+      }
+    });
+  }
+
+  async clearAllUserActivities(userId: number): Promise<void> {
+    console.log(`Clearing all activities for user ${userId}`);
+    Array.from(this.workActivities.entries()).forEach(([activityId, activity]) => {
+      if (activity.userId === userId) {
+        this.workActivities.delete(activityId);
+      }
+    });
+  }
+
   // Daily summary operations
   async createDailySummary(insertSummary: InsertDailySummary): Promise<DailySummary> {
     const id = this.currentSummaryId++;
@@ -360,6 +393,11 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(integrations).where(eq(integrations.userId, userId));
   }
 
+  async getIntegrationById(id: number): Promise<Integration | undefined> {
+    const [integration] = await db.select().from(integrations).where(eq(integrations.id, id));
+    return integration || undefined;
+  }
+
   async getIntegrationByProvider(userId: number, provider: string): Promise<Integration | undefined> {
     const [integration] = await db
       .select()
@@ -391,6 +429,7 @@ export class DatabaseStorage implements IStorage {
 
   // Work activity operations
   async createWorkActivity(insertActivity: InsertWorkActivity): Promise<WorkActivity> {
+    console.log(`Creating activity for user ${insertActivity.userId}: ${insertActivity.title} (${insertActivity.provider})`);
     const [activity] = await db
       .insert(workActivities)
       .values(insertActivity)
@@ -399,12 +438,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserWorkActivities(userId: number, limit = 50): Promise<WorkActivity[]> {
-    return await db
+    console.log(`DatabaseStorage: Fetching activities for user ID: ${userId}`);
+    const activities = await db
       .select()
       .from(workActivities)
       .where(eq(workActivities.userId, userId))
       .orderBy(desc(workActivities.timestamp))
       .limit(limit);
+    console.log(`DatabaseStorage: Found ${activities.length} activities for user ${userId}`);
+    activities.forEach(activity => {
+      console.log(`Activity: ${activity.title} - User ID: ${activity.userId} - Provider: ${activity.provider}`);
+    });
+    return activities;
   }
 
   async getWorkActivitiesByDateRange(userId: number, startDate: Date, endDate: Date): Promise<WorkActivity[]> {
@@ -419,6 +464,24 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .orderBy(desc(workActivities.timestamp));
+  }
+
+  async clearIntegrationActivities(integrationId: number): Promise<void> {
+    await db.delete(workActivities).where(eq(workActivities.integrationId, integrationId));
+  }
+
+  async clearProviderActivities(userId: number, provider: string): Promise<void> {
+    await db.delete(workActivities).where(
+      and(
+        eq(workActivities.userId, userId),
+        eq(workActivities.provider, provider)
+      )
+    );
+  }
+
+  async clearAllUserActivities(userId: number): Promise<void> {
+    console.log(`Clearing all activities for user ${userId}`);
+    await db.delete(workActivities).where(eq(workActivities.userId, userId));
   }
 
   // Daily summary operations
@@ -445,6 +508,21 @@ export class DatabaseStorage implements IStorage {
       .where(eq(dailySummaries.userId, userId))
       .orderBy(desc(dailySummaries.date))
       .limit(limit);
+  }
+
+  async getAllUsersWithIntegrations(): Promise<Array<{id: number, email: string}>> {
+    // Get users with connected integrations
+    const result = await db
+      .select({ 
+        id: users.id, 
+        email: users.email 
+      })
+      .from(users)
+      .innerJoin(integrations, eq(users.id, integrations.userId))
+      .where(eq(integrations.isConnected, true))
+      .groupBy(users.id, users.email);
+    
+    return result;
   }
 }
 

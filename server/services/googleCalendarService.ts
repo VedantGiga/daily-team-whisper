@@ -19,25 +19,31 @@ export class GoogleCalendarService {
   }
 
   static async syncUserData(integration: Integration): Promise<void> {
+    console.log(`Starting Google Calendar sync for integration ${integration.id}, user ${integration.userId}`);
+    
     try {
       if (!integration.accessToken) {
         throw new Error('No access token available for Google Calendar integration');
       }
 
+      console.log('Access token available, syncing recent events...');
       // Sync recent events
       await this.syncRecentEvents(integration);
       
+      console.log('Events synced successfully, updating integration...');
       // Update last sync time
       await storage.updateIntegration(integration.id, {
         lastSyncAt: new Date(),
         isConnected: true
       });
+      
+      console.log('Google Calendar sync completed successfully');
 
     } catch (error) {
       console.error('Error syncing Google Calendar data:', error);
-      await storage.updateIntegration(integration.id, {
-        isConnected: false
-      });
+      console.error('Error details:', error instanceof Error ? error.message : String(error));
+      
+      // Don't disconnect on sync errors, just log them
       throw error;
     }
   }
@@ -83,6 +89,20 @@ export class GoogleCalendarService {
               // Handle both timed events and all-day events
               if (!event.start?.dateTime && !event.start?.date) {
                 console.log(`Skipping event ${event.summary || 'Untitled'} - no start time at all`);
+                continue;
+              }
+
+              // Skip holiday calendars and holiday events
+              const isHoliday = calendar.summary?.toLowerCase().includes('holiday') || 
+                               event.summary?.toLowerCase().includes('holiday') ||
+                               event.summary?.toLowerCase().includes('bakrid') ||
+                               event.summary?.toLowerCase().includes('eid') ||
+                               event.summary?.toLowerCase().includes('diwali') ||
+                               event.summary?.toLowerCase().includes('christmas') ||
+                               event.summary?.toLowerCase().includes('new year');
+              
+              if (isHoliday) {
+                console.log(`Skipping holiday event: ${event.summary}`);
                 continue;
               }
 

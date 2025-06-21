@@ -1,11 +1,15 @@
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { GitCommit, Calendar, ExternalLink, RefreshCw, Clock } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { GitCommit, Calendar, ExternalLink, RefreshCw, Clock, GitPullRequest, AlertCircle, Search, Download } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import type { WorkActivity } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
+import { exportToPDF, exportToCSV } from "@/lib/exportUtils";
 
 interface ActivityFeedProps {
   userId: number;
@@ -15,6 +19,12 @@ const getActivityIcon = (activityType: string) => {
   switch (activityType) {
     case 'calendar_event':
       return <Calendar className="h-4 w-4" />;
+    case 'commit':
+      return <GitCommit className="h-4 w-4" />;
+    case 'pr':
+      return <GitPullRequest className="h-4 w-4" />;
+    case 'issue':
+      return <AlertCircle className="h-4 w-4" />;
     default:
       return <GitCommit className="h-4 w-4" />;
   }
@@ -24,6 +34,12 @@ const getActivityColor = (activityType: string) => {
   switch (activityType) {
     case 'calendar_event':
       return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300';
+    case 'commit':
+      return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
+    case 'pr':
+      return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
+    case 'issue':
+      return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300';
     default:
       return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300';
   }
@@ -31,6 +47,10 @@ const getActivityColor = (activityType: string) => {
 
 export const ActivityFeed = ({ userId }: ActivityFeedProps) => {
   const { toast } = useToast();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterProvider, setFilterProvider] = useState('all');
+  const [filterType, setFilterType] = useState('all');
+  const [dateFilter, setDateFilter] = useState('');
 
   const { data: activities = [], isLoading, refetch } = useQuery({
     queryKey: ["/api/activities", userId],
@@ -40,6 +60,25 @@ export const ActivityFeed = ({ userId }: ActivityFeedProps) => {
       return response.json();
     },
   });
+
+  // Filter activities
+  const filteredActivities = activities.filter((activity: WorkActivity) => {
+    const matchesSearch = !searchTerm || 
+      activity.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      activity.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesProvider = filterProvider === 'all' || activity.provider === filterProvider;
+    const matchesType = filterType === 'all' || activity.activityType === filterType;
+    
+    const matchesDate = !dateFilter || 
+      new Date(activity.timestamp).toISOString().split('T')[0] === dateFilter;
+    
+    return matchesSearch && matchesProvider && matchesType && matchesDate;
+  });
+
+  // Get unique providers and types
+  const providers = [...new Set(activities.map((a: WorkActivity) => a.provider))];
+  const activityTypes = [...new Set(activities.map((a: WorkActivity) => a.activityType))];
 
   const refreshMutation = useMutation({
     mutationFn: () => refetch(),
@@ -92,37 +131,110 @@ export const ActivityFeed = ({ userId }: ActivityFeedProps) => {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-        >
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
           <h3 className="text-sm font-medium text-muted-foreground">Latest Activities</h3>
-        </motion.div>
-        <motion.div
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => refreshMutation.mutate()}
-            disabled={refreshMutation.isPending}
-            className="h-8 px-2"
-          >
-            <motion.div
-              animate={refreshMutation.isPending ? { rotate: 360 } : {}}
-              transition={{ duration: 1, repeat: refreshMutation.isPending ? Infinity : 0, ease: "linear" }}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => exportToCSV(filteredActivities, 'activities')}
+              className="h-8"
             >
-              <RefreshCw className="h-3 w-3" />
-            </motion.div>
-          </Button>
-        </motion.div>
+              <Download className="h-3 w-3 mr-1" />
+              CSV
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => exportToPDF(filteredActivities, 'Activity Report')}
+              className="h-8"
+            >
+              <Download className="h-3 w-3 mr-1" />
+              PDF
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => refreshMutation.mutate()}
+              disabled={refreshMutation.isPending}
+              className="h-8 px-2"
+            >
+              <motion.div
+                animate={refreshMutation.isPending ? { rotate: 360 } : {}}
+                transition={{ duration: 1, repeat: refreshMutation.isPending ? Infinity : 0, ease: "linear" }}
+              >
+                <RefreshCw className="h-3 w-3" />
+              </motion.div>
+            </Button>
+          </div>
+        </div>
+        
+        {/* Search and Filters */}
+        <div className="space-y-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              placeholder="Search activities..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 h-9"
+            />
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <Select value={filterProvider} onValueChange={setFilterProvider}>
+              <SelectTrigger className="w-32 h-8">
+                <SelectValue placeholder="Provider" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Providers</SelectItem>
+                {providers.map(provider => (
+                  <SelectItem key={provider} value={provider}>
+                    {provider.replace('_', ' ')}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger className="w-32 h-8">
+                <SelectValue placeholder="Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                {activityTypes.map(type => (
+                  <SelectItem key={type} value={type}>
+                    {type.replace('_', ' ')}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input
+              type="date"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="w-36 h-8"
+            />
+            {(searchTerm || filterProvider !== 'all' || filterType !== 'all' || dateFilter) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSearchTerm('');
+                  setFilterProvider('all');
+                  setFilterType('all');
+                  setDateFilter('');
+                }}
+                className="h-8 px-2"
+              >
+                Clear
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
 
       <AnimatePresence mode="wait">
-        {activities.length === 0 ? (
+        {filteredActivities.length === 0 && activities.length === 0 ? (
           <motion.div 
             key="empty"
             initial={{ opacity: 0, y: 20 }}
@@ -161,7 +273,7 @@ export const ActivityFeed = ({ userId }: ActivityFeedProps) => {
             animate={{ opacity: 1 }}
             className="space-y-3"
           >
-            {activities.map((activity: WorkActivity, index: number) => {
+            {filteredActivities.map((activity: WorkActivity, index: number) => {
               const metadata = (activity.metadata as any) || {};
               
               return (
@@ -255,6 +367,18 @@ export const ActivityFeed = ({ userId }: ActivityFeedProps) => {
                 </motion.div>
               );
             })}
+          </motion.div>
+        )}
+        
+        {filteredActivities.length === 0 && activities.length > 0 && (
+          <motion.div 
+            key="no-results"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center py-8 text-muted-foreground"
+          >
+            <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            <p className="text-sm">No activities match your filters</p>
           </motion.div>
         )}
       </AnimatePresence>

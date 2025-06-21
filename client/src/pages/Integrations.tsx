@@ -1,7 +1,4 @@
 import { IntegrationManager } from "@/components/IntegrationManager";
-import { GitHubConfigStatus } from "@/components/GitHubConfigStatus";
-import { GitHubUserInfo } from "@/components/GitHubUserInfo";
-import { ActivityFeed } from "@/components/ActivityFeed";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -54,33 +51,16 @@ const Integrations = () => {
     },
   });
 
-  const githubIntegration = integrations.find(i => i.provider === "github" && i.isConnected);
+
 
   return (
     <div className="min-h-screen bg-background">
       <DashboardHeader onThemeToggle={toggleTheme} isDarkMode={isDarkMode} />
       
       <main className="container mx-auto px-6 py-8 space-y-8">
-        <GitHubConfigStatus />
-        
-        {githubIntegration ? (
-          <div className="space-y-8">
-            <GitHubUserInfo 
-              integration={githubIntegration}
-              onSync={() => syncIntegrationMutation.mutate(githubIntegration.id)}
-              isSyncing={syncIntegrationMutation.isPending}
-            />
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {userId && <IntegrationManager userId={userId} />}
-              {userId && <ActivityFeed userId={userId} />}
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {userId && <IntegrationManager userId={userId} />}
-            {userId && <ActivityFeed userId={userId} />}
-          </div>
-        )}
+        <div className="max-w-4xl mx-auto">
+          {userId && <IntegrationManager userId={userId} />}
+        </div>
       </main>
     </div>
   );

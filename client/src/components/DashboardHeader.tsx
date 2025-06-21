@@ -1,4 +1,5 @@
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -9,7 +10,8 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
-import { Moon, Sun, User, Settings, Mail, LogOut } from "lucide-react";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Moon, Sun, User, Settings, Mail, LogOut, Menu, Home, FileText, Plug, Users, UserCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { NetworkStatusBadge } from "@/components/NetworkStatus";
 import autoBriefLogo from "@/assets/autobrief-logo.png";
@@ -22,6 +24,7 @@ interface DashboardHeaderProps {
 
 export const DashboardHeader = ({ onThemeToggle, isDarkMode }: DashboardHeaderProps) => {
   const { currentUser, userProfile, logout } = useAuth();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleSignOut = async () => {
     try {
@@ -70,6 +73,11 @@ export const DashboardHeader = ({ onThemeToggle, isDarkMode }: DashboardHeaderPr
                 Integrations
               </Button>
             </Link>
+            <Link to="/profiles">
+              <Button variant="ghost" size="sm" className="rounded-full px-4 hover:bg-white dark:hover:bg-slate-800 transition-all duration-200">
+                Profiles
+              </Button>
+            </Link>
             <Link to="/team">
               <Button variant="ghost" size="sm" className="rounded-full px-4 hover:bg-white dark:hover:bg-slate-800 transition-all duration-200">
                 Team
@@ -77,8 +85,116 @@ export const DashboardHeader = ({ onThemeToggle, isDarkMode }: DashboardHeaderPr
             </Link>
           </nav>
 
+          {/* Mobile Menu */}
+          <div className="md:hidden">
+            <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-9 w-9">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-80">
+                <div className="flex flex-col h-full">
+                  <div className="flex items-center gap-3 pb-6 border-b">
+                    <Avatar className="h-12 w-12">
+                      <AvatarImage src={currentUser?.photoURL || ''} alt={currentUser?.displayName || 'User'} />
+                      <AvatarFallback className="bg-purple-600 text-white">
+                        {currentUser?.displayName ? getInitials(currentUser.displayName) : 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-medium">{currentUser?.displayName || 'User'}</p>
+                      <p className="text-sm text-muted-foreground">{currentUser?.email}</p>
+                    </div>
+                  </div>
+                  
+                  <nav className="flex-1 py-6">
+                    <div className="space-y-2">
+                      <Link to="/dashboard">
+                        <Button 
+                          variant="ghost" 
+                          className="w-full justify-start h-12 text-base"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          <Home className="mr-3 h-5 w-5" />
+                          Dashboard
+                        </Button>
+                      </Link>
+                      <Link to="/summaries">
+                        <Button 
+                          variant="ghost" 
+                          className="w-full justify-start h-12 text-base"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          <FileText className="mr-3 h-5 w-5" />
+                          Summaries
+                        </Button>
+                      </Link>
+                      <Link to="/integrations">
+                        <Button 
+                          variant="ghost" 
+                          className="w-full justify-start h-12 text-base"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          <Plug className="mr-3 h-5 w-5" />
+                          Integrations
+                        </Button>
+                      </Link>
+                      <Link to="/profiles">
+                        <Button 
+                          variant="ghost" 
+                          className="w-full justify-start h-12 text-base"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          <UserCircle className="mr-3 h-5 w-5" />
+                          Profiles
+                        </Button>
+                      </Link>
+                      <Link to="/team">
+                        <Button 
+                          variant="ghost" 
+                          className="w-full justify-start h-12 text-base"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          <Users className="mr-3 h-5 w-5" />
+                          Team
+                        </Button>
+                      </Link>
+                    </div>
+                  </nav>
+                  
+                  <div className="border-t pt-6 space-y-2">
+                    <Button 
+                      variant="ghost" 
+                      className="w-full justify-start h-12 text-base"
+                      onClick={onThemeToggle}
+                    >
+                      {isDarkMode ? <Sun className="mr-3 h-5 w-5" /> : <Moon className="mr-3 h-5 w-5" />}
+                      {isDarkMode ? 'Light Mode' : 'Dark Mode'}
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      className="w-full justify-start h-12 text-base"
+                    >
+                      <Settings className="mr-3 h-5 w-5" />
+                      Settings
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      className="w-full justify-start h-12 text-base text-red-600 hover:text-red-700"
+                      onClick={handleSignOut}
+                    >
+                      <LogOut className="mr-3 h-5 w-5" />
+                      Sign Out
+                    </Button>
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
+
           {/* User Menu */}
-          <div className="flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-3">
             <Button
               variant="ghost"
               size="sm"

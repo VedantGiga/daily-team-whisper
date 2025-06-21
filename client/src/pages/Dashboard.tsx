@@ -6,37 +6,56 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { 
-  Github, 
   Calendar, 
-  Settings, 
-  User, 
-  Mail,
-  Clock,
   CheckCircle,
-  AlertCircle,
-  FileText,
   BarChart3,
-  Plus,
-  Moon,
-  Sun,
-  TrendingUp,
-  Activity
+  Activity,
+  GitCommit
 } from "lucide-react";
 import { DashboardHeader } from "@/components/DashboardHeader";
-import { IntegrationManager } from "@/components/IntegrationManager";
+
 import { ActivityFeed } from "@/components/ActivityFeed";
+import { AIInsights } from "@/components/AIInsights";
 import { QuickStats } from "@/components/QuickStats";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserId } from "@/lib/userService";
+import { useQuery } from "@tanstack/react-query";
 
 const Dashboard = () => {
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('darkMode') === 'true' || document.documentElement.classList.contains('dark');
+    }
+    return false;
+  });
   const { currentUser } = useAuth();
   const userId = useUserId(currentUser?.uid);
 
+  // Fetch user's activities for stats
+  const { data: activities = [] } = useQuery({
+    queryKey: ["/api/activities", userId],
+    queryFn: async () => {
+      if (!userId) return [];
+      const response = await fetch(`/api/activities?userId=${userId}`);
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: !!userId,
+  });
+
+  // Calculate stats from activities
+  const stats = {
+    totalActivities: activities.length,
+    commits: activities.filter((a: any) => a.activityType === 'commit').length,
+    meetings: activities.filter((a: any) => a.activityType === 'calendar_event').length,
+    pullRequests: activities.filter((a: any) => a.activityType === 'pr').length,
+  };
+
   const toggleTheme = () => {
-    setIsDarkMode(!isDarkMode);
-    document.documentElement.classList.toggle('dark');
+    const newMode = !isDarkMode;
+    setIsDarkMode(newMode);
+    localStorage.setItem('darkMode', newMode.toString());
+    document.documentElement.classList.toggle('dark', newMode);
   };
 
   // Animation variants
@@ -88,213 +107,205 @@ const Dashboard = () => {
         initial="hidden"
         animate="visible"
       >
-        {/* Welcome Section */}
-        <motion.div 
-          className="text-center space-y-4"
-          variants={heroVariants}
-        >
-          <motion.h1 
-            className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-purple-600 via-blue-600 to-teal-500 bg-clip-text text-transparent"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-          >
-            AutoBrief AI Dashboard
-          </motion.h1>
-          <motion.p 
-            className="text-xl text-muted-foreground max-w-2xl mx-auto"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-          >
-            Track your work activities and generate automated daily briefs with AI-powered insights.
-          </motion.p>
+        {/* Header */}
+        <motion.div className="mb-8" variants={heroVariants}>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">Welcome back!</h1>
+              <p className="text-muted-foreground">Here's what's happening with your work today</p>
+            </div>
+            <div className="text-right">
+              <p className="text-sm text-muted-foreground">Today</p>
+              <p className="text-lg font-semibold">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+            </div>
+          </div>
         </motion.div>
 
-        {/* Quick Stats */}
-        <motion.div variants={itemVariants}>
-          <QuickStats />
-        </motion.div>
-
-        {/* Real-time sections with actual data */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Integrations */}
-          <motion.div
-            variants={itemVariants}
-            whileHover="hover"
-            initial="rest"
-          >
-            <motion.div variants={cardHoverVariants}>
-              <Card className="shadow-lg border-0 bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm">
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                      >
-                        <Settings className="h-5 w-5 text-purple-600" />
-                      </motion.div>
-                      Connected Services
-                    </CardTitle>
-                    <CardDescription>
-                      Manage your third-party integrations
-                    </CardDescription>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {userId && <IntegrationManager userId={userId} />}
-                </CardContent>
-              </Card>
-            </motion.div>
-          </motion.div>
-
-          {/* Real Activity Feed */}
-          <motion.div
-            variants={itemVariants}
-            whileHover="hover"
-            initial="rest"
-          >
-            <motion.div variants={cardHoverVariants}>
-              <Card className="shadow-lg border-0 bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <motion.div
-                      animate={{ scale: [1, 1.2, 1] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                    >
-                      <Activity className="h-5 w-5 text-green-600" />
-                    </motion.div>
-                    Live Activity Feed
-                  </CardTitle>
-                  <CardDescription>
-                    Real-time updates from your connected services
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {userId && <ActivityFeed userId={userId} />}
-                </CardContent>
-              </Card>
-            </motion.div>
-          </motion.div>
-        </div>
-
-        {/* Enhanced Statistics Cards */}
-        <motion.div 
-          className="grid grid-cols-1 md:grid-cols-3 gap-6"
-          variants={itemVariants}
-        >
-          <motion.div whileHover={{ scale: 1.05, y: -5 }} transition={{ duration: 0.2 }}>
-            <Card className="shadow-lg border-0 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-4">
-                  <motion.div 
-                    className="p-3 bg-blue-600 text-white rounded-full"
-                    whileHover={{ rotate: 360 }}
-                    transition={{ duration: 0.5 }}
-                  >
-                    <Calendar className="h-6 w-6" />
-                  </motion.div>
-                  <div>
-                    <p className="text-2xl font-bold text-blue-600">4</p>
-                    <p className="text-sm text-muted-foreground">Calendar Events</p>
-                  </div>
+        {/* Stats Overview */}
+        <motion.div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8" variants={itemVariants}>
+          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 border-blue-200 dark:border-blue-700">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">{stats.meetings}</p>
+                  <p className="text-sm font-medium text-blue-700 dark:text-blue-300">Calendar Events</p>
+                  <p className="text-xs text-blue-600/70 dark:text-blue-400/70 mt-1">This week</p>
                 </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          <motion.div whileHover={{ scale: 1.05, y: -5 }} transition={{ duration: 0.2 }}>
-            <Card className="shadow-lg border-0 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-4">
-                  <motion.div 
-                    className="p-3 bg-green-600 text-white rounded-full"
-                    whileHover={{ rotate: 360 }}
-                    transition={{ duration: 0.5 }}
-                  >
-                    <CheckCircle className="h-6 w-6" />
-                  </motion.div>
-                  <div>
-                    <p className="text-2xl font-bold text-green-600">1</p>
-                    <p className="text-sm text-muted-foreground">Active Integration</p>
-                  </div>
+                <div className="p-3 bg-blue-600 dark:bg-blue-500 rounded-full">
+                  <Calendar className="h-6 w-6 text-white" />
                 </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          <motion.div whileHover={{ scale: 1.05, y: -5 }} transition={{ duration: 0.2 }}>
-            <Card className="shadow-lg border-0 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-4">
-                  <motion.div 
-                    className="p-3 bg-purple-600 text-white rounded-full"
-                    whileHover={{ rotate: 360 }}
-                    transition={{ duration: 0.5 }}
-                  >
-                    <TrendingUp className="h-6 w-6" />
-                  </motion.div>
-                  <div>
-                    <p className="text-2xl font-bold text-purple-600">100%</p>
-                    <p className="text-sm text-muted-foreground">Sync Success Rate</p>
-                  </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/30 border-green-200 dark:border-green-700">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-3xl font-bold text-green-600 dark:text-green-400">{stats.commits}</p>
+                  <p className="text-sm font-medium text-green-700 dark:text-green-300">Code Commits</p>
+                  <p className="text-xs text-green-600/70 dark:text-green-400/70 mt-1">This week</p>
                 </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </motion.div>
-
-        {/* Enhanced CTA Section */}
-        <motion.div
-          variants={itemVariants}
-          whileHover={{ scale: 1.01 }}
-          transition={{ duration: 0.3 }}
-        >
-          <Card className="shadow-2xl border-0 bg-gradient-to-r from-purple-500 via-blue-500 to-teal-500 text-white overflow-hidden relative">
-            <motion.div
-              className="absolute inset-0 bg-white/10"
-              animate={{
-                background: [
-                  "linear-gradient(45deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)",
-                  "linear-gradient(45deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.1) 100%)"
-                ]
-              }}
-              transition={{ duration: 3, repeat: Infinity, repeatType: "reverse" }}
-            />
-            <CardContent className="p-8 text-center relative z-10">
-              <motion.h3 
-                className="text-2xl md:text-3xl font-bold mb-4"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6, duration: 0.6 }}
-              >
-                Your AI Work Assistant is Ready
-              </motion.h3>
-              <motion.p 
-                className="text-purple-100 mb-6 text-lg"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.8, duration: 0.6 }}
-              >
-                Google Calendar integration is active and syncing your events automatically.
-              </motion.p>
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Button 
-                  size="lg" 
-                  variant="secondary" 
-                  className="bg-white text-purple-600 hover:bg-gray-100 shadow-lg font-semibold px-8 py-3"
-                >
-                  <Plus className="h-5 w-5 mr-2" />
-                  Add More Integrations
-                </Button>
-              </motion.div>
+                <div className="p-3 bg-green-600 dark:bg-green-500 rounded-full">
+                  <GitCommit className="h-6 w-6 text-white" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/30 dark:to-orange-800/30 border-orange-200 dark:border-orange-700">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-3xl font-bold text-orange-600 dark:text-orange-400">{stats.pullRequests}</p>
+                  <p className="text-sm font-medium text-orange-700 dark:text-orange-300">Pull Requests</p>
+                  <p className="text-xs text-orange-600/70 dark:text-orange-400/70 mt-1">This week</p>
+                </div>
+                <div className="p-3 bg-orange-600 dark:bg-orange-500 rounded-full">
+                  <GitCommit className="h-6 w-6 text-white" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/30 dark:to-purple-800/30 border-purple-200 dark:border-purple-700">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">{stats.totalActivities}</p>
+                  <p className="text-sm font-medium text-purple-700 dark:text-purple-300">Total Activities</p>
+                  <p className="text-xs text-purple-600/70 dark:text-purple-400/70 mt-1">All time</p>
+                </div>
+                <div className="p-3 bg-purple-600 dark:bg-purple-500 rounded-full">
+                  <BarChart3 className="h-6 w-6 text-white" />
+                </div>
+              </div>
             </CardContent>
           </Card>
         </motion.div>
+
+        {/* Service Activities */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* GitHub Activities */}
+          <Card className="shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800/50 dark:to-gray-700/50">
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 bg-gray-800 dark:bg-gray-600 rounded-lg">
+                    <GitCommit className="h-5 w-5 text-white" />
+                  </div>
+                  GitHub Activity
+                </div>
+                <Badge variant="secondary" className="dark:bg-gray-700 dark:text-gray-200">{activities.filter((a: any) => a.provider === 'github').length}</Badge>
+              </CardTitle>
+              <CardDescription>Recent commits, pull requests, and issues</CardDescription>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="space-y-4">
+                {activities.filter((a: any) => a.provider === 'github').slice(0, 5).map((activity: any) => (
+                  <div key={activity.id} className="flex items-start gap-4 p-4 rounded-lg border border-gray-100 dark:border-gray-700 hover:border-gray-200 dark:hover:border-gray-600 transition-colors">
+                    <div className={`p-2 rounded-full ${
+                      activity.activityType === 'commit' ? 'bg-green-100 text-green-600' :
+                      activity.activityType === 'pr' ? 'bg-blue-100 text-blue-600' :
+                      'bg-orange-100 text-orange-600'
+                    }`}>
+                      <GitCommit className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm mb-1">{activity.title}</p>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        {activity.description?.substring(0, 80)}...
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-xs">
+                          {activity.activityType}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(activity.timestamp).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {activities.filter((a: any) => a.provider === 'github').length === 0 && (
+                  <div className="text-center py-8">
+                    <GitCommit className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
+                    <p className="text-sm text-muted-foreground">No GitHub activities yet</p>
+                    <p className="text-xs text-muted-foreground mt-1">Connect GitHub to see your commits and PRs</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Calendar Activities */}
+          <Card className="shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-800/50 dark:to-blue-700/50">
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 bg-blue-600 dark:bg-blue-500 rounded-lg">
+                    <Calendar className="h-5 w-5 text-white" />
+                  </div>
+                  Calendar Events
+                </div>
+                <Badge variant="secondary" className="dark:bg-blue-700 dark:text-blue-200">{activities.filter((a: any) => a.provider === 'google_calendar').length}</Badge>
+              </CardTitle>
+              <CardDescription>Upcoming meetings and scheduled events</CardDescription>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="space-y-4">
+                {activities.filter((a: any) => a.provider === 'google_calendar').slice(0, 5).map((activity: any) => (
+                  <div key={activity.id} className="flex items-start gap-4 p-4 rounded-lg border border-blue-100 dark:border-blue-800 hover:border-blue-200 dark:hover:border-blue-700 transition-colors">
+                    <div className="p-2 rounded-full bg-blue-100 text-blue-600">
+                      <Calendar className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm mb-1">{activity.title}</p>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        {activity.metadata?.duration ? `${activity.metadata.duration} minutes` : 'Event'}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-xs bg-blue-50 dark:bg-blue-900/30 dark:border-blue-700">
+                          Meeting
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(activity.timestamp).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {activities.filter((a: any) => a.provider === 'google_calendar').length === 0 && (
+                  <div className="text-center py-8">
+                    <Calendar className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
+                    <p className="text-sm text-muted-foreground">No calendar events yet</p>
+                    <p className="text-xs text-muted-foreground mt-1">Connect Google Calendar to see your meetings</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* AI Insights */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold mb-4">AI Insights</h2>
+          {userId && <AIInsights userId={userId} />}
+        </div>
+
+        {/* All Activities */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5" />
+              All Recent Activity
+            </CardTitle>
+            <CardDescription>Combined feed from all services</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {userId && <ActivityFeed userId={userId} />}
+          </CardContent>
+        </Card>
       </motion.main>
     </div>
   );
