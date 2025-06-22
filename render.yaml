@@ -2,6 +2,7 @@ services:
   - type: web
     name: daily-team-whisper
     env: node
+    plan: free
     buildCommand: npm install && npm run build
     startCommand: npm start
     envVars:
