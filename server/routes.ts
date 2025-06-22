@@ -1810,6 +1810,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { CronService } = await import('./services/cronService');
   CronService.init();
 
+  // Catch-all handler for SPA in production
+  if (process.env.NODE_ENV === 'production') {
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(__dirname, '../dist/public/index.html'));
+    });
+  }
+
   const httpServer = createServer(app);
   return httpServer;
 }

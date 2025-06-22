@@ -1,6 +1,6 @@
 import type { Integration, InsertIntegration, WorkActivity, DailySummary } from "@shared/schema";
 
-const API_BASE = "http://localhost:5000/api";
+const API_BASE = process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:5000/api';
 
 export class IntegrationService {
   static async getUserIntegrations(userId: number): Promise<Integration[]> {

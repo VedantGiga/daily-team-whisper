@@ -55,7 +55,7 @@ export const ActivityFeed = ({ userId }: ActivityFeedProps) => {
   const { data: activities = [], isLoading, refetch } = useQuery({
     queryKey: ["/api/activities", userId],
     queryFn: async () => {
-      const response = await fetch(`http://localhost:5000/api/activities?userId=${userId}`);
+      const response = await fetch(`${process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:5000/api'}/activities?userId=${userId}`);
       if (!response.ok) throw new Error('Failed to fetch activities');
       return response.json();
     },
