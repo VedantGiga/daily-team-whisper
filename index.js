@@ -10,6 +10,21 @@ const PORT = process.env.PORT || 3000;
 // Serve static files
 app.use(express.static(path.join(__dirname, 'dist/public')));
 
+// Explicitly serve assets directory
+app.use('/assets', express.static(path.join(__dirname, 'dist/public/assets')));
+
+// Serve client-side JavaScript
+app.get('/*.js', (req, res) => {
+  res.set('Content-Type', 'application/javascript');
+  res.sendFile(path.join(__dirname, 'dist/public', req.path));
+});
+
+// Serve CSS files
+app.get('/*.css', (req, res) => {
+  res.set('Content-Type', 'text/css');
+  res.sendFile(path.join(__dirname, 'dist/public', req.path));
+});
+
 // Serve index.html for all routes (SPA)
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist/public/index.html'));
