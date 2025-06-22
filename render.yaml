@@ -3,8 +3,8 @@ services:
     name: daily-team-whisper
     env: node
     plan: free
-    buildCommand: npm install && chmod +x build.sh && ./build.sh
-    startCommand: node index.js
+    buildCommand: npm install && npm run build
+    startCommand: node server.js
     envVars:
       - key: NODE_ENV
         value: production

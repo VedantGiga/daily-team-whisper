@@ -7,10 +7,9 @@
     "dev": "concurrently \"cross-env NODE_ENV=development tsx server/index.ts\" \"vite --host 0.0.0.0 --port 3000\"",
     "dev:server": "cross-env NODE_ENV=development tsx server/index.ts",
     "dev:client": "vite --host 0.0.0.0 --port 3000",
-    "build": "vite build && esbuild server/production-server.js --platform=node --packages=external --bundle --format=esm --outdir=dist",
-    "start": "node index.js",
+    "build": "vite build",
+    "start": "node server.js",
     "check": "tsc",
-    "check-build": "node check-build.js",
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
