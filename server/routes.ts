@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import path from "node:path";
 import { storage } from "./storage";
 import { GitHubService } from "./services/githubService";
 import { SlackService } from "./services/slackService";
@@ -475,10 +476,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ].join(' ');
 
       const state = Buffer.from(JSON.stringify({ userId })).toString("base64");
-      // Use REPLIT_DOMAINS for the redirect URI to ensure it matches the actual domain
-      const host = process.env.REPLIT_DOMAINS ? process.env.REPLIT_DOMAINS.split(',')[0] : req.get('host');
-      const protocol = host.includes('localhost') ? 'http' : 'https';
-      const redirectUri = `${protocol}://${host}/api/integrations/google-calendar/callback`;
+      // Use the actual production URL for Render deployment
+      const redirectUri = 'https://daily-team-whisper.onrender.com/api/integrations/google-calendar/callback';
       
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${process.env.GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&response_type=code&state=${state}&access_type=offline&prompt=consent`;
       
@@ -501,9 +500,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { userId } = JSON.parse(Buffer.from(state as string, "base64").toString());
       
-      // Use REPLIT_DOMAINS for the redirect URI to ensure it matches the actual domain
-      const host = process.env.REPLIT_DOMAINS ? process.env.REPLIT_DOMAINS.split(',')[0] : req.get('host');
-      const protocol = host.includes('localhost') ? 'http' : 'https';
+      // Use the actual production URL for Render deployment
+      const redirectUri = 'https://daily-team-whisper.onrender.com/api/integrations/google-calendar/callback';
       
       // Exchange code for access token
       const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
@@ -516,7 +514,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           client_secret: process.env.GOOGLE_CLIENT_SECRET!,
           code: code.toString(),
           grant_type: 'authorization_code',
-          redirect_uri: `${protocol}://${host}/api/integrations/google-calendar/callback`
+          redirect_uri: redirectUri
         })
       });
 
@@ -1810,11 +1808,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { CronService } = await import('./services/cronService');
   CronService.init();
 
-  // Catch-all handler for SPA in production
+  // Import and setup SPA handler for production
   if (process.env.NODE_ENV === 'production') {
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(__dirname, '../dist/public/index.html'));
-    });
+    const { setupSpaHandler } = await import('./spa-handler.js');
+    setupSpaHandler(app);
   }
 
   const httpServer = createServer(app);

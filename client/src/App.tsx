@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Router, Route, Switch } from "wouter";
+import { useLocationProperty, navigate } from "wouter/use-browser-location";
 import { Toaster as HotToaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -58,7 +59,7 @@ const App = () => (
             },
           }}
         />
-        <Router>
+        <Router hook={useLocationProperty}>
           <NetworkStatus />
           <Switch>
             {/* Public Routes */}

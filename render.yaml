@@ -8,4 +8,52 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      # Firebase Configuration
+      - key: VITE_FIREBASE_API_KEY
+        value: AIzaSyCqdc8qN-F_5na8OxYozNU_T0LDvPoYu80
+      - key: VITE_FIREBASE_AUTH_DOMAIN
+        value: autobrief-e6e9b.firebaseapp.com
+      - key: VITE_FIREBASE_PROJECT_ID
+        value: autobrief-e6e9b
+      - key: VITE_FIREBASE_STORAGE_BUCKET
+        value: autobrief-e6e9b.firebasestorage.app
+      - key: VITE_FIREBASE_MESSAGING_SENDER_ID
+        value: 895049074715
+      - key: VITE_FIREBASE_APP_ID
+        value: 1:895049074715:web:d3780f9e56731a6dd8d0be
+      - key: VITE_FIREBASE_MEASUREMENT_ID
+        value: G-D4Y2JPHQQP
+      # Database Configuration
+      - key: DATABASE_URL
+        value: postgresql://neondb_owner:npg_L0u2nDgorqHG@ep-raspy-glade-a6nmkwea.us-west-2.aws.neon.tech/neondb?sslmode=require
+      # GitHub OAuth Configuration
+      - key: GITHUB_CLIENT_ID
+        value: Iv23liSm8hOrCG78dun8
+      - key: GITHUB_CLIENT_SECRET
+        value: 9ed8cc59a71af88cad66991b86d8646c66707cfd
+      # Google OAuth Configuration
+      - key: GOOGLE_CLIENT_ID
+        value: 913646208792-hltu1sh6mmvi1m0em9cpplcq0nn4tich.apps.googleusercontent.com
+      - key: GOOGLE_CLIENT_SECRET
+        value: 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
+      # Notion OAuth Configuration
+      - key: NOTION_CLIENT_ID
+        value: 219d872b-594c-8002-a76f-0037d7df0f80
+      - key: NOTION_CLIENT_SECRET
+        value: secret_VAITVRTxnYooDnsgVvfVEtYutjUh7Iuxz17ECksAqdb
+      # Jira OAuth Configuration
+      - key: JIRA_CLIENT_ID
+        value: wxnr68j0NO37Gg1YR6JGWfWDNPDWaiDo
+      - key: JIRA_CLIENT_SECRET
+        value: ATOAYV8-i0uenx3n4km1XIZ_TZVayxcXfbpy7Pst5mlrlRmgjuW-_kTLCE1BFdx9Jv4rEC2C7DD1
+      # Slack OAuth Configuration
+      - key: SLACK_CLIENT_ID
+        value: 9088699822513.9075783883138
+      - key: SLACK_CLIENT_SECRET
+        value: 2c22d809a6ca9f611ab6f3f413bed634
+      # AI and Email Services
+      - key: GROQ_API_KEY
+        value: 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
+      - key: RESEND_API_KEY
+        value: rre_ffqMVZGC_NKyHJ9QMU3jW9uA6r8TUDuGn
     healthCheckPath: /
