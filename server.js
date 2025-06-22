@@ -2,11 +2,16 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import cors from 'cors';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Middleware
+app.use(cors());
+app.use(express.json());
 
 // Log middleware to debug requests
 app.use((req, res, next) => {
@@ -16,9 +21,6 @@ app.use((req, res, next) => {
 
 // Serve static files from the dist/public directory
 app.use(express.static(path.join(__dirname, 'dist/public')));
-
-// Explicitly serve assets directory
-app.use('/assets', express.static(path.join(__dirname, 'dist/public/assets')));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -36,38 +38,9 @@ app.get('*', (req, res) => {
   const indexPath = path.join(__dirname, 'dist/public/index.html');
   
   if (fs.existsSync(indexPath)) {
-    console.log('Serving index.html');
     res.sendFile(indexPath);
   } else {
-    console.error('index.html not found at:', indexPath);
-    // List files in the dist directory to debug
-    try {
-      const files = fs.readdirSync(path.join(__dirname, 'dist/public'));
-      console.log('Files in dist/public:', files);
-    } catch (err) {
-      console.error('Error reading dist/public directory:', err);
-    }
-    
-    res.status(200).send(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>AutoBrief</title>
-        </head>
-        <body>
-          <div id="root"></div>
-          <script>
-            // Try to load the main script
-            const script = document.createElement('script');
-            script.type = 'module';
-            script.src = '/assets/index.js';
-            document.body.appendChild(script);
-          </script>
-        </body>
-      </html>
-    `);
+    res.status(404).send('Application not found. Please check your build configuration.');
   }
 });
 

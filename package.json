@@ -7,7 +7,7 @@
     "dev": "concurrently \"cross-env NODE_ENV=development tsx server/index.ts\" \"vite --host 0.0.0.0 --port 3000\"",
     "dev:server": "cross-env NODE_ENV=development tsx server/index.ts",
     "dev:client": "vite --host 0.0.0.0 --port 3000",
-    "build": "vite build",
+    "build": "vite build && cp -f dist/public/index.html dist/public/200.html || true",
     "start": "node server.js",
     "deploy": "chmod +x deploy.sh && ./deploy.sh",
     "check": "tsc",
