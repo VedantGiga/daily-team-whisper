@@ -1,13 +1,17 @@
-const express = require('express');
-const path = require('path');
-const fs = require('fs');
+import express from 'express';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 
 // Load environment variables if dotenv is available
 try {
-  require('dotenv').config();
+  import('dotenv').then(dotenv => dotenv.config());
 } catch (error) {
   console.log('dotenv not available, skipping');
 }
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
