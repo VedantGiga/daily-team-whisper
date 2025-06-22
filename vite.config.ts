@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+  base: "/",
   plugins: [react()],
   publicDir: 'public',
   resolve: {
@@ -19,5 +20,11 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,
+    assetsDir: "assets",
+    rollupOptions: {
+      output: {
+        manualChunks: undefined
+      }
+    },
   },
 });

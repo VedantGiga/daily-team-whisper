@@ -1,9 +1,10 @@
 import express from 'express';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import path from 'path';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const publicPath = path.join(__dirname, '../dist/public');
+// In production, the server is running from the dist directory
+const publicPath = process.env.NODE_ENV === 'production' 
+  ? path.resolve('./dist/public')
+  : path.resolve('./dist/public');
 
 export function setupSpaHandler(app: express.Express) {
   // Serve static files
