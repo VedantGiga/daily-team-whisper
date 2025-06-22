@@ -2,6 +2,13 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 
+// Load environment variables if dotenv is available
+try {
+  require('dotenv').config();
+} catch (error) {
+  console.log('dotenv not available, skipping');
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -15,7 +22,28 @@ app.use('/api', (req, res) => {
 
 // Serve index.html for all other routes (SPA)
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'dist/public/index.html'));
+  const indexPath = path.join(__dirname, 'dist/public/index.html');
+  
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    // If index.html doesn't exist, send a simple HTML response
+    res.status(200).send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>AutoBrief - Team Summaries</title>
+        </head>
+        <body style="font-family: sans-serif; text-align: center; padding: 20px;">
+          <h1>AutoBrief</h1>
+          <p>Loading application...</p>
+          <script>setTimeout(() => { window.location.href="/"; }, 1000);</script>
+        </body>
+      </html>
+    `);
+  }
 });
 
 app.listen(PORT, () => {

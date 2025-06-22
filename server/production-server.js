@@ -19,16 +19,27 @@ app.use('/api', (req, res) => {
 // Serve index.html for all other routes (SPA)
 app.get('*', (req, res) => {
   const indexPath = path.join(staticPath, 'index.html');
-  const fallbackPath = path.join(__dirname, 'fallback-index.html');
   
-  // Check if index.html exists
-  if (fs.existsSync(indexPath)) {
+  try {
+    // Try to send the index.html file
     res.sendFile(indexPath);
-  } else if (fs.existsSync(fallbackPath)) {
-    // Use fallback if main index.html is missing
-    res.sendFile(fallbackPath);
-  } else {
-    res.status(200).send('<html><body><h1>AutoBrief</h1><p>Loading application...</p><script>window.location.href="/";</script></body></html>');
+  } catch (error) {
+    // If index.html doesn't exist, send a simple HTML response
+    res.status(200).send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>AutoBrief - Team Summaries</title>
+        </head>
+        <body style="font-family: sans-serif; text-align: center; padding: 20px;">
+          <h1>AutoBrief</h1>
+          <p>Loading application...</p>
+          <script>window.location.href="/";</script>
+        </body>
+      </html>
+    `);
   }
 });
 
