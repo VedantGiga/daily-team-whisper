@@ -3,7 +3,7 @@ services:
     name: daily-team-whisper
     env: node
     plan: free
-    buildCommand: npm install && npm run build
+    buildCommand: npm install && npm run build && cp -f dist/public/index.html dist/public/200.html
     startCommand: node server.js
     envVars:
       - key: NODE_ENV

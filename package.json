@@ -9,6 +9,7 @@
     "dev:client": "vite --host 0.0.0.0 --port 3000",
     "build": "vite build",
     "start": "node server.js",
+    "deploy": "chmod +x deploy.sh && ./deploy.sh",
     "check": "tsc",
     "db:push": "drizzle-kit push"
   },
