@@ -36,7 +36,7 @@ const Dashboard = () => {
     queryKey: ["/api/activities", userId],
     queryFn: async () => {
       if (!userId) return [];
-      const response = await fetch(`/api/activities?userId=${userId}`);
+      const response = await fetch(`http://localhost:5000/api/activities?userId=${userId}`);
       if (!response.ok) return [];
       return response.json();
     },

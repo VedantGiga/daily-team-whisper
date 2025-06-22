@@ -19,7 +19,7 @@ export const AIInsights = ({ userId }: AIInsightsProps) => {
   const { data: workPatterns, isLoading: patternsLoading } = useQuery({
     queryKey: ["/api/ai/work-patterns", userId],
     queryFn: async () => {
-      const response = await fetch(`/api/ai/work-patterns/${userId}`);
+      const response = await fetch(`http://localhost:5000/api/ai/work-patterns/${userId}`);
       if (!response.ok) throw new Error('Failed to get work patterns');
       return response.json();
     },
@@ -30,7 +30,7 @@ export const AIInsights = ({ userId }: AIInsightsProps) => {
   const { data: taskSuggestions, isLoading: suggestionsLoading } = useQuery({
     queryKey: ["/api/ai/task-suggestions", userId],
     queryFn: async () => {
-      const response = await fetch(`/api/ai/task-suggestions/${userId}`);
+      const response = await fetch(`http://localhost:5000/api/ai/task-suggestions/${userId}`);
       if (!response.ok) throw new Error('Failed to get task suggestions');
       return response.json();
     },
@@ -40,7 +40,7 @@ export const AIInsights = ({ userId }: AIInsightsProps) => {
   // Generate daily summary
   const dailySummaryMutation = useMutation({
     mutationFn: async (date: string) => {
-      const response = await fetch('/api/ai/daily-summary', {
+      const response = await fetch('http://localhost:5000/api/ai/daily-summary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, date }),

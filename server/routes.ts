@@ -16,6 +16,20 @@ import { db } from "./db";
 import { eq } from "drizzle-orm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Root route
+  app.get("/", (req, res) => {
+    res.json({ 
+      message: "Daily Team Whisper API", 
+      status: "running",
+      endpoints: {
+        integrations: "/api/integrations",
+        activities: "/api/activities",
+        summaries: "/api/summaries",
+        ai: "/api/ai/*"
+      }
+    });
+  });
+
   // Integration Routes
   
   // Get user's integrations
@@ -1722,6 +1736,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error removing team member:", error);
       res.status(500).json({ error: "Failed to remove team member" });
+    }
+  });
+
+  // Add sample data for testing
+  app.post("/api/add-sample-data", async (req, res) => {
+    try {
+      const userId = 1;
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Add sample activities
+      await storage.createWorkActivity({
+        userId,
+        provider: 'github',
+        activityType: 'commit',
+        title: 'Fix authentication bug',
+        description: 'Resolved login issues for users',
+        timestamp: new Date(`${today}T10:00:00Z`)
+      });
+      
+      await storage.createWorkActivity({
+        userId,
+        provider: 'github',
+        activityType: 'pr',
+        title: 'Add new dashboard feature',
+        description: 'Implemented user dashboard with analytics',
+        timestamp: new Date(`${today}T14:00:00Z`)
+      });
+      
+      await storage.createWorkActivity({
+        userId,
+        provider: 'google_calendar',
+        activityType: 'calendar_event',
+        title: 'Team standup meeting',
+        description: 'Daily team sync',
+        timestamp: new Date(`${today}T09:00:00Z`),
+        metadata: { duration: 30 }
+      });
+      
+      res.json({ success: true, message: 'Sample data added' });
+    } catch (error) {
+      console.error('Error adding sample data:', error);
+      res.status(500).json({ error: 'Failed to add sample data' });
     }
   });
 
