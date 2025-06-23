@@ -85,7 +85,7 @@ export const AIInsights = ({ userId }: AIInsightsProps) => {
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className="px-3 py-2 border rounded-md text-sm"
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
               />
               <Button
                 onClick={() => dailySummaryMutation.mutate(selectedDate)}
@@ -104,7 +104,7 @@ export const AIInsights = ({ userId }: AIInsightsProps) => {
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
-                className="mt-4 p-4 bg-white dark:bg-gray-800 rounded-lg border"
+                className="mt-4 p-4 bg-white dark:bg-gray-800/50 rounded-lg border border-purple-200 dark:border-purple-800/50"
               >
                 <p className="text-sm leading-relaxed">{dailySummaryMutation.data.summary}</p>
               </motion.div>
@@ -134,10 +134,12 @@ export const AIInsights = ({ userId }: AIInsightsProps) => {
                 Analyzing your work patterns...
               </div>
             ) : workPatterns?.analysis ? (
-              <div className="prose prose-sm max-w-none">
-                <p className="text-sm leading-relaxed whitespace-pre-line">
-                  {workPatterns.analysis}
-                </p>
+              <div className="prose prose-sm max-w-none dark:prose-invert">
+                <div className="p-4 bg-white dark:bg-gray-800/50 rounded-lg border border-blue-200 dark:border-blue-800/50">
+                  <p className="text-sm leading-relaxed whitespace-pre-line text-gray-700 dark:text-gray-300">
+                    {workPatterns.analysis}
+                  </p>
+                </div>
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
@@ -176,7 +178,7 @@ export const AIInsights = ({ userId }: AIInsightsProps) => {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.1 }}
-                    className="flex items-start gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg border"
+                    className="flex items-start gap-3 p-3 bg-white dark:bg-gray-800/50 rounded-lg border border-green-200 dark:border-green-800/50"
                   >
                     <CheckSquare className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
                     <p className="text-sm leading-relaxed">{task}</p>

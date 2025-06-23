@@ -3,6 +3,7 @@ import {
   integrations,
   workActivities,
   dailySummaries,
+  userProfiles,
   type User, 
   type InsertUser,
   type Integration,
@@ -10,7 +11,9 @@ import {
   type WorkActivity,
   type InsertWorkActivity,
   type DailySummary,
-  type InsertDailySummary
+  type InsertDailySummary,
+  type UserProfile,
+  type InsertUserProfile
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lte, desc } from "drizzle-orm";
@@ -34,9 +37,13 @@ export interface IStorage {
   createWorkActivity(activity: InsertWorkActivity): Promise<WorkActivity>;
   getUserWorkActivities(userId: number, limit?: number): Promise<WorkActivity[]>;
   getWorkActivitiesByDateRange(userId: number, startDate: Date, endDate: Date): Promise<WorkActivity[]>;
+  deleteWorkActivity(id: number): Promise<void>;
   clearIntegrationActivities(integrationId: number): Promise<void>;
   clearProviderActivities(userId: number, provider: string): Promise<void>;
   clearAllUserActivities(userId: number): Promise<void>;
+  getAllUsersWithIntegrations(): Promise<Array<{id: number, email: string}>>;  
+  getUserProfile(userId: number): Promise<UserProfile | null>;
+  updateUserProfile(userId: number, profileData: Partial<UserProfile>): Promise<UserProfile>;
   
   // Daily summary operations
   createDailySummary(summary: InsertDailySummary): Promise<DailySummary>;
@@ -49,20 +56,27 @@ export class MemStorage implements IStorage {
   private integrations: Map<number, Integration>;
   private workActivities: Map<number, WorkActivity>;
   private dailySummaries: Map<number, DailySummary>;
+  private userProfiles: Map<number, UserProfile>;
   private currentUserId: number;
   private currentIntegrationId: number;
   private currentActivityId: number;
   private currentSummaryId: number;
+  private currentProfileId: number;
 
   constructor() {
     this.users = new Map();
     this.integrations = new Map();
     this.workActivities = new Map();
     this.dailySummaries = new Map();
+    this.userProfiles = new Map();
     this.currentUserId = 1;
     this.currentIntegrationId = 1;
     this.currentActivityId = 1;
     this.currentSummaryId = 1;
+    this.currentProfileId = 1;
+    
+    // Load profiles from localStorage
+    this.loadProfilesFromStorage();
     
     // Initialize with sample data
     this.initializeSampleData();
@@ -129,8 +143,8 @@ export class MemStorage implements IStorage {
         description: "Resolved issue where users couldn't log in with special characters in password",
         externalId: "abc123",
         metadata: { sha: "abc123", additions: 15, deletions: 3 },
-        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000)
+        timestamp: new Date(),
+        createdAt: new Date()
       },
       {
         id: 2,
@@ -142,8 +156,8 @@ export class MemStorage implements IStorage {
         description: "Implemented comprehensive dark theme with user preferences",
         externalId: "pr456",
         metadata: { number: 123, state: "merged", changed_files: 8 },
-        timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000),
-        createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000)
+        timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000),
+        createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000)
       },
       {
         id: 3,
@@ -155,8 +169,8 @@ export class MemStorage implements IStorage {
         description: "Added comprehensive API documentation for new integration endpoints",
         externalId: "def789",
         metadata: { sha: "def789", additions: 45, deletions: 0 },
-        timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000),
-        createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000)
+        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
+        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000)
       }
     ];
 
@@ -323,6 +337,10 @@ export class MemStorage implements IStorage {
     });
   }
 
+  async deleteWorkActivity(id: number): Promise<void> {
+    this.workActivities.delete(id);
+  }
+
   async clearAllUserActivities(userId: number): Promise<void> {
     console.log(`Clearing all activities for user ${userId}`);
     Array.from(this.workActivities.entries()).forEach(([activityId, activity]) => {
@@ -330,6 +348,116 @@ export class MemStorage implements IStorage {
         this.workActivities.delete(activityId);
       }
     });
+  }
+
+  async getAllUsersWithIntegrations(): Promise<Array<{id: number, email: string}>> {
+    const usersWithIntegrations = new Set<number>();
+    Array.from(this.integrations.values()).forEach(integration => {
+      if (integration.isConnected) {
+        usersWithIntegrations.add(integration.userId);
+      }
+    });
+    
+    return Array.from(usersWithIntegrations).map(userId => {
+      const user = this.users.get(userId);
+      return {
+        id: userId,
+        email: user?.email || `user${userId}@example.com`
+      };
+    });
+  }
+
+  async getUserProfile(userId: number): Promise<UserProfile | null> {
+    // Find existing profile for this user
+    const existingProfile = Array.from(this.userProfiles.values()).find(p => p.userId === userId);
+    if (existingProfile) {
+      return existingProfile;
+    }
+    
+    // Return default profile if none exists
+    const defaultProfile: UserProfile = {
+      id: this.currentProfileId++,
+      userId,
+      displayName: 'Demo User',
+      bio: null,
+      location: 'India',
+      timezone: 'Asia/Kolkata',
+      profilePhotoUrl: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    this.userProfiles.set(defaultProfile.id, defaultProfile);
+    return defaultProfile;
+  }
+
+  async updateUserProfile(userId: number, profileData: Partial<UserProfile>): Promise<UserProfile> {
+    // Find existing profile
+    const existingProfile = Array.from(this.userProfiles.values()).find(p => p.userId === userId);
+    
+    if (existingProfile) {
+      // Update existing profile
+      const updatedProfile: UserProfile = {
+        ...existingProfile,
+        ...profileData,
+        updatedAt: new Date()
+      };
+      this.userProfiles.set(existingProfile.id, updatedProfile);
+      this.saveProfilesToStorage();
+      return updatedProfile;
+    } else {
+      // Create new profile
+      const newProfile: UserProfile = {
+        id: this.currentProfileId++,
+        userId,
+        displayName: profileData.displayName || 'Demo User',
+        bio: profileData.bio || null,
+        location: profileData.location || 'India',
+        timezone: profileData.timezone || 'Asia/Kolkata',
+        profilePhotoUrl: profileData.profilePhotoUrl || null,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      this.userProfiles.set(newProfile.id, newProfile);
+      this.saveProfilesToStorage();
+      return newProfile;
+    }
+  }
+
+  private loadProfilesFromStorage() {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const profilesPath = path.join(process.cwd(), 'profiles.json');
+      
+      if (fs.existsSync(profilesPath)) {
+        const data = fs.readFileSync(profilesPath, 'utf8');
+        const profiles = JSON.parse(data);
+        profiles.forEach((profile: UserProfile) => {
+          this.userProfiles.set(profile.id, profile);
+          if (profile.id >= this.currentProfileId) {
+            this.currentProfileId = profile.id + 1;
+          }
+        });
+        console.log(`Loaded ${profiles.length} profiles from storage`);
+      }
+    } catch (error) {
+      console.log('Failed to load profiles from storage:', error);
+    }
+  }
+
+  private saveProfilesToStorage() {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const profilesPath = path.join(process.cwd(), 'profiles.json');
+      
+      const profiles = Array.from(this.userProfiles.values());
+      fs.writeFileSync(profilesPath, JSON.stringify(profiles, null, 2));
+      console.log(`Saved ${profiles.length} profiles to storage`);
+    } catch (error) {
+      console.log('Failed to save profiles to storage:', error);
+    }
   }
 
   // Daily summary operations
@@ -479,6 +607,10 @@ export class DatabaseStorage implements IStorage {
     );
   }
 
+  async deleteWorkActivity(id: number): Promise<void> {
+    await db.delete(workActivities).where(eq(workActivities.id, id));
+  }
+
   async clearAllUserActivities(userId: number): Promise<void> {
     console.log(`Clearing all activities for user ${userId}`);
     await db.delete(workActivities).where(eq(workActivities.userId, userId));
@@ -523,6 +655,60 @@ export class DatabaseStorage implements IStorage {
       .groupBy(users.id, users.email);
     
     return result;
+  }
+
+  async getUserProfile(userId: number): Promise<UserProfile | null> {
+    try {
+      const [profile] = await db.select().from(userProfiles).where(eq(userProfiles.userId, userId));
+      return profile || null;
+    } catch (error) {
+      console.log('Profile table may not exist, returning default profile');
+      return {
+        id: 1,
+        userId,
+        displayName: 'User',
+        bio: null,
+        location: 'India',
+        timezone: 'Asia/Kolkata',
+        profilePhotoUrl: null,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+    }
+  }
+
+  async updateUserProfile(userId: number, profileData: Partial<UserProfile>): Promise<UserProfile> {
+    try {
+      const existing = await this.getUserProfile(userId);
+      
+      if (existing && existing.id !== 1) { // Not the default profile
+        const [updated] = await db
+          .update(userProfiles)
+          .set({ ...profileData, updatedAt: new Date() })
+          .where(eq(userProfiles.userId, userId))
+          .returning();
+        return updated;
+      } else {
+        const [created] = await db
+          .insert(userProfiles)
+          .values({ userId, ...profileData })
+          .returning();
+        return created;
+      }
+    } catch (error) {
+      console.log('Profile update failed, returning updated default profile');
+      return {
+        id: 1,
+        userId,
+        displayName: profileData.displayName || 'User',
+        bio: profileData.bio || null,
+        location: profileData.location || 'India',
+        timezone: profileData.timezone || 'Asia/Kolkata',
+        profilePhotoUrl: profileData.profilePhotoUrl || null,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+    }
   }
 }
 

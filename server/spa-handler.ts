@@ -11,10 +11,10 @@ export function setupSpaHandler(app: express.Express) {
   app.use(express.static(publicPath));
   
   // Catch-all route for SPA
-  app.get('*', (req, res) => {
+  app.get('*', (req, res, next) => {
     // Skip API routes
-    if (req.path.startsWith('/api/')) {
-      return res.status(404).json({ error: 'API endpoint not found' });
+    if (req.path.startsWith('/api/') || req.path === '/health') {
+      return next();
     }
     
     // Send the SPA index.html for all other routes

@@ -54,7 +54,7 @@ export class GitHubService {
     if (!integration.accessToken) return;
 
     const since = new Date();
-    since.setDate(since.getDate() - 7); // Last 7 days
+    since.setDate(since.getDate() - 3); // Last 3 days
 
     try {
       // Get user's events (most recent activity)
@@ -174,12 +174,12 @@ export class GitHubService {
 
     try {
       // Get user's repositories
-      const repos = await this.makeGitHubRequest('/user/repos?sort=pushed&direction=desc&per_page=20', integration.accessToken);
+      const repos = await this.makeGitHubRequest('/user/repos?sort=pushed&direction=desc&per_page=10', integration.accessToken);
       
       for (const repo of repos) {
         // Get recent commits for each repo
         const commits = await this.makeGitHubRequest(
-          `/repos/${repo.full_name}/commits?author=${integration.providerUsername}&since=${since.toISOString()}&per_page=50`,
+          `/repos/${repo.full_name}/commits?author=${integration.providerUsername}&since=${since.toISOString()}&per_page=20`,
           integration.accessToken
         );
 
@@ -332,14 +332,14 @@ export class GitHubService {
       throw new Error('No access token available');
     }
 
-    // Clear existing GitHub activities for the last 7 days
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    // Clear existing GitHub activities for the last 3 days
+    const threeDaysAgo = new Date();
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
     
     const activities = await storage.getUserWorkActivities(integration.userId, 1000);
     const recentGithubActivities = activities.filter(activity => 
       activity.provider === 'github' && 
-      new Date(activity.timestamp) >= sevenDaysAgo
+      new Date(activity.timestamp) >= threeDaysAgo
     );
     
     // Delete recent GitHub activities

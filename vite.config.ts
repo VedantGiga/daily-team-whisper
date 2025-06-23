@@ -12,6 +12,24 @@ export default defineConfig({
   server: {
     port: 3000,
     strictPort: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        secure: false
+      },
+      '/health': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        secure: false
+      },
+      '/favicon.ico': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        secure: false
+      }
+    },
+    allowedHosts: ['5940-2401-4900-8820-77ab-410d-5d13-c8fe-7929.ngrok-free.app', 'localhost'],
   },
   resolve: {
     alias: {
@@ -35,3 +53,4 @@ export default defineConfig({
     },
   },
 });
+

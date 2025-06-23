@@ -182,6 +182,33 @@ export const ActivityFeed = ({ userId }: ActivityFeedProps) => {
             />
           </div>
           <div className="flex gap-2 flex-wrap">
+            {/* Quick filter buttons */}
+            <div className="flex gap-1">
+              <Button
+                variant={filterProvider === 'github' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilterProvider(filterProvider === 'github' ? 'all' : 'github')}
+                className="h-8 px-3"
+              >
+                GitHub
+              </Button>
+              <Button
+                variant={filterProvider === 'google_calendar' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilterProvider(filterProvider === 'google_calendar' ? 'all' : 'google_calendar')}
+                className="h-8 px-3"
+              >
+                Calendar
+              </Button>
+              <Button
+                variant={filterProvider === 'slack' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilterProvider(filterProvider === 'slack' ? 'all' : 'slack')}
+                className="h-8 px-3"
+              >
+                Slack
+              </Button>
+            </div>
             <Select value={filterProvider} onValueChange={setFilterProvider}>
               <SelectTrigger className="w-32 h-8">
                 <SelectValue placeholder="Provider" />

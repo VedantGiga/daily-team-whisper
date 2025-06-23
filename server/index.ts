@@ -36,7 +36,7 @@ app.use(rateLimiter);
 app.use('/api', apiRateLimiter);
 
 // CORS configuration
-const corsOptions = {
+const corsOptions: cors.CorsOptions = {
   origin: process.env.NODE_ENV === 'production' 
     ? process.env.CORS_ORIGIN?.split(',') || false
     : true,
@@ -49,6 +49,18 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Explicitly handle favicon.ico requests
+app.get('/favicon.ico', (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/public/favicon.ico'));
+});
+
+// Serve the root path in development mode
+if (process.env.NODE_ENV === 'development') {
+  app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, './fallback-index.html'));
+  });
+}
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({
@@ -60,19 +72,78 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Serve static files in production
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../dist/public'), {
-    maxAge: '1y',
-    etag: true,
-    lastModified: true,
-    setHeaders: (res, path) => {
-      // Cache static assets for 1 year, but not HTML files
-      if (path.endsWith('.html')) {
-        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-      }
+// API root endpoint
+app.get('/api', (req, res) => {
+  res.json({ 
+    message: "Daily Team Whisper API", 
+    status: "running",
+    endpoints: {
+      integrations: "/api/integrations",
+      activities: "/api/activities",
+      summaries: "/api/summaries",
+      ai: "/api/ai/*"
     }
-  }));
+  });
+});
+
+// Cron status endpoint (directly in index.ts for immediate availability)
+app.get('/api/cron-check', (req, res) => {
+  // Calculate next run time
+  const now = new Date();
+  const nextRun = new Date();
+  nextRun.setHours(20, 0, 0, 0); // 8 PM
+  
+  // If it's already past 8 PM, schedule for tomorrow
+  if (now.getHours() >= 20) {
+    nextRun.setDate(nextRun.getDate() + 1);
+  }
+  
+  const timeUntilNextRun = nextRun.getTime() - now.getTime();
+  const hoursUntilNextRun = Math.floor(timeUntilNextRun / (1000 * 60 * 60));
+  const minutesUntilNextRun = Math.floor((timeUntilNextRun % (1000 * 60 * 60)) / (1000 * 60));
+  
+  res.json({
+    currentTime: now.toISOString(),
+    nextRunTime: nextRun.toISOString(),
+    timeUntilNextRun: {
+      hours: hoursUntilNextRun,
+      minutes: minutesUntilNextRun,
+      formatted: `${hoursUntilNextRun}h ${minutesUntilNextRun}m`
+    },
+    schedule: '0 20 * * *', // 8 PM daily
+    isActive: true
+  });
+});
+
+// Manual trigger endpoint (directly in index.ts for immediate availability)
+app.post('/api/run-cron', async (req, res) => {
+  try {
+    console.log('Manually triggering daily summary generation...');
+    
+    // Import CronService dynamically
+    const { CronService } = await import('./services/cronService');
+    
+    // Run the daily summary generation
+    await CronService.generateDailySummaries();
+    
+    res.json({ 
+      success: true, 
+      message: 'Daily summary generation triggered successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error triggering daily summary generation:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to trigger daily summary generation',
+      message: error.message
+    });
+  }
+});
+
+// In production, serve static files from the dist directory
+if (process.env.NODE_ENV === 'production') {
+  // This will be handled by the SPA handler after routes are registered
 }
 
 // Register all routes

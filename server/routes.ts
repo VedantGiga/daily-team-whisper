@@ -11,14 +11,15 @@ import {
   insertIntegrationSchema, 
   insertWorkActivitySchema, 
   insertDailySummarySchema,
+  insertUserProfileSchema,
   integrations
 } from "@shared/schema";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Root route
-  app.get("/", (req, res) => {
+  // API info route
+  app.get('/api/info', (req, res) => {
     res.json({ 
       message: "Daily Team Whisper API", 
       status: "running",
@@ -30,6 +31,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
   });
+
+  // Profile endpoints
+  console.log('Registering profile routes...');
+  
+  // Simple in-memory profile storage
+  const profiles: Record<string, any> = {};
+  
+  app.get("/api/profile/:userId", (req, res) => {
+    try {
+      const userId = req.params.userId;
+      console.log('Getting profile for user:', userId);
+      const profile = profiles[userId] || {
+        userId,
+        displayName: 'User',
+        bio: '',
+        location: 'India',
+        timezone: 'Asia/Kolkata',
+        profilePhotoUrl: '',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      res.json(profile);
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+      res.status(500).json({ error: 'Failed to fetch profile' });
+    }
+  });
+
+  app.put("/api/profile/:userId", (req, res) => {
+    try {
+      const userId = req.params.userId;
+      const profileData = req.body;
+      console.log('Updating profile for user:', userId, 'with data:', profileData);
+      
+      const existing = profiles[userId] || {};
+      profiles[userId] = {
+        ...existing,
+        userId,
+        ...profileData,
+        updatedAt: new Date().toISOString(),
+        createdAt: existing.createdAt || new Date().toISOString()
+      };
+      
+      console.log('Profile updated:', profiles[userId]);
+      res.json(profiles[userId]);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      res.status(500).json({ error: 'Failed to update profile' });
+    }
+  });
+  
+  console.log('Profile routes registered successfully');
 
   // Integration Routes
   
@@ -1319,6 +1372,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Sync data from integrations
   app.post("/api/integrations/:id/sync", async (req, res) => {
+    const { forceLatest } = req.body;
     try {
       const integrationId = parseInt(req.params.id);
       
@@ -1336,7 +1390,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Perform actual sync based on provider
       try {
         if (integration.provider === "github") {
-          await GitHubService.syncUserData(integration);
+          // Always force latest data for better user experience
+          await GitHubService.syncLatestData(integration);
         } else if (integration.provider === "google_calendar") {
           await GoogleCalendarService.syncUserData(integration);
         } else if (integration.provider === "jira") {
@@ -1353,7 +1408,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.json({ success: true, lastSyncAt: updatedIntegration.lastSyncAt });
       } catch (syncError) {
         console.error(`Error syncing ${integration.provider}:`, syncError);
-        res.status(500).json({ error: `Failed to sync ${integration.provider}: ${syncError instanceof Error ? syncError.message : String(syncError)}` });
+        
+        // Check if it's an authentication error
+        if (syncError instanceof Error && syncError.message.includes('401')) {
+          // Mark integration as disconnected
+          await storage.updateIntegration(integrationId, {
+            isConnected: false,
+            lastSyncAt: new Date()
+          });
+          res.status(401).json({ error: `Authentication failed for ${integration.provider}. Please reconnect.` });
+        } else {
+          res.status(500).json({ error: `Failed to sync ${integration.provider}: ${syncError instanceof Error ? syncError.message : String(syncError)}` });
+        }
       }
     } catch (error) {
       console.error("Error syncing integration:", error);
@@ -1385,6 +1451,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching GitHub repositories:", error);
       res.status(500).json({ error: "Failed to fetch repositories" });
+    }
+  });
+
+  // Force sync latest GitHub data
+  app.post("/api/integrations/:id/github/sync-latest", async (req, res) => {
+    try {
+      const integrationId = parseInt(req.params.id);
+      
+      // Get the integration directly by ID
+      const integration = await storage.getIntegrationById(integrationId);
+      
+      if (!integration) {
+        return res.status(404).json({ error: "Integration not found" });
+      }
+
+      if (!integration.isConnected) {
+        return res.status(400).json({ error: "Integration is not connected" });
+      }
+
+      if (integration.provider !== "github") {
+        return res.status(400).json({ error: "Not a GitHub integration" });
+      }
+
+      await GitHubService.syncLatestData(integration);
+      
+      res.json({ 
+        success: true, 
+        message: "Latest GitHub data synced successfully",
+        lastSyncAt: new Date()
+      });
+    } catch (error) {
+      console.error("Error syncing latest GitHub data:", error);
+      res.status(500).json({ error: "Failed to sync latest GitHub data" });
     }
   });
 
@@ -1497,20 +1596,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Check Resend API configuration
+  app.get("/api/check-email-config", async (req, res) => {
+    try {
+      const resendApiKey = process.env.RESEND_API_KEY;
+      const isConfigured = !!resendApiKey;
+      
+      res.json({
+        isConfigured,
+        keyPreview: isConfigured ? `${resendApiKey.substring(0, 5)}...${resendApiKey.substring(resendApiKey.length - 3)}` : null,
+        keyLength: isConfigured ? resendApiKey.length : 0
+      });
+    } catch (error) {
+      console.error('Error checking email configuration:', error);
+      res.status(500).json({ error: 'Failed to check email configuration' });
+    }
+  });
+  
   // Simple email test route
   app.get("/api/test-email", async (req, res) => {
     try {
+      console.log(`Test email requested`);
+      
+      if (!process.env.RESEND_API_KEY) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'RESEND_API_KEY not configured in environment variables' 
+        });
+      }
       const email = req.query.email as string || 'test@example.com';
       const today = new Date().toISOString().split('T')[0];
       const summary = "# Test Daily Brief\n\n## 🔧 GitHub\n✅ 2 commits pushed\n   • Test commit 1\n   • Test commit 2\n\n## 📊 Daily Summary\n✅ 2 tasks completed";
       
       const { EmailService } = await import('./services/emailService');
-      await EmailService.sendDailySummary(email, summary, today);
       
-      res.json({ success: true, message: `Email sent to ${email}` });
+      try {
+        await EmailService.sendDailySummary(email, summary, today);
+        res.json({ 
+          success: true, 
+          message: `Email sent to ${email}`,
+          apiKey: process.env.RESEND_API_KEY ? `${process.env.RESEND_API_KEY.substring(0, 5)}...` : 'not set'
+        });
+      } catch (emailError) {
+        console.error('Email sending failed:', emailError);
+        res.status(500).json({ 
+          success: false, 
+          error: emailError.message,
+          details: JSON.stringify(emailError)
+        });
+      }
     } catch (error) {
       console.error('Email test error:', error);
-      res.json({ success: false, error: error.message });
+      res.status(500).json({ 
+        success: false, 
+        error: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
     }
   });
 
@@ -1779,6 +1920,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Send test email with specific address (GET method for easier testing)
+  app.get("/api/send-test-email", async (req, res) => {
+    try {
+      const email = req.query.email as string;
+      
+      if (!email) {
+        return res.status(400).json({ error: "Email address is required as a query parameter" });
+      }
+      
+      console.log(`Sending test email to ${email}`);
+      
+      const today = new Date().toISOString().split('T')[0];
+      const summary = "# Test Daily Brief\n\n## 🔧 GitHub\n✅ 2 commits pushed\n   • Test commit 1\n   • Test commit 2\n\n## 📊 Daily Summary\n✅ 2 tasks completed";
+      
+      const { EmailService } = await import('./services/emailService');
+      const result = await EmailService.sendDailySummary(email, summary, today);
+      
+      res.json({ 
+        success: true, 
+        message: `Email sent to ${email}`,
+        result
+      });
+    } catch (error) {
+      console.error('Error sending test email:', error);
+      res.status(500).json({ 
+        error: 'Failed to send test email', 
+        details: error.message 
+      });
+    }
+  });
+
+  // Get cron job status
+  app.get("/api/cron-status", async (req, res) => {
+    try {
+      const { CronService } = await import('./services/cronService');
+      const status = CronService.getStatus();
+      res.json(status);
+    } catch (error) {
+      console.error('Error getting cron status:', error);
+      res.status(500).json({ error: 'Failed to get cron status' });
+    }
+  });
+
+  // Manually trigger cron job for daily summaries
+  app.post("/api/trigger-daily-summaries", async (req, res) => {
+    try {
+      const { CronService } = await import('./services/cronService');
+      await CronService.generateDailySummaries();
+      res.json({ success: true, message: 'Daily summaries generated and emails sent' });
+    } catch (error) {
+      console.error('Error triggering daily summaries:', error);
+      res.status(500).json({ error: 'Failed to generate daily summaries' });
+    }
+  });
+
   // Test daily summary endpoint
   app.post("/api/test-daily-summary", async (req, res) => {
     try {
@@ -1801,6 +1997,118 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error sending test summary:', error);
       res.status(500).json({ error: 'Failed to send summary' });
+    }
+  });
+
+  // AI-powered features with Groq
+  app.post("/api/ai/smart-summary", async (req, res) => {
+    try {
+      const { userId, timeframe = 'today' } = req.body;
+      if (!userId) {
+        return res.status(400).json({ error: 'User ID is required' });
+      }
+      
+      const activities = await storage.getUserWorkActivities(userId, 50);
+      const userProfile = await storage.getUserProfile(userId);
+      
+      const { groqService } = await import('./services/groqService');
+      const summary = await groqService.generateSmartSummary(activities, {
+        name: userProfile?.displayName,
+        timezone: userProfile?.timezone
+      });
+      
+      res.json({ summary });
+    } catch (error) {
+      console.error('Error generating smart summary:', error);
+      res.status(500).json({ error: 'Failed to generate smart summary' });
+    }
+  });
+
+  app.post("/api/ai/standup-report", async (req, res) => {
+    try {
+      const { userId } = req.body;
+      if (!userId) {
+        return res.status(400).json({ error: 'User ID is required' });
+      }
+      
+      const activities = await storage.getUserWorkActivities(userId, 100);
+      const userProfile = await storage.getUserProfile(userId);
+      
+      const { groqService } = await import('./services/groqService');
+      const report = await groqService.generateStandupReport(activities, {
+        name: userProfile?.displayName,
+        timezone: userProfile?.timezone
+      });
+      
+      res.json({ report });
+    } catch (error) {
+      console.error('Error generating standup report:', error);
+      res.status(500).json({ error: 'Failed to generate standup report' });
+    }
+  });
+
+  app.post("/api/ai/chat", async (req, res) => {
+    try {
+      const { userId, query } = req.body;
+      if (!userId || !query) {
+        return res.status(400).json({ error: 'User ID and query are required' });
+      }
+      
+      const activities = await storage.getUserWorkActivities(userId, 100);
+      const userProfile = await storage.getUserProfile(userId);
+      
+      const { groqService } = await import('./services/groqService');
+      const response = await groqService.chatWithData(query, activities, {
+        name: userProfile?.displayName,
+        timezone: userProfile?.timezone
+      });
+      
+      res.json({ response });
+    } catch (error) {
+      console.error('Error processing AI chat:', error);
+      res.status(500).json({ error: 'Failed to process your question' });
+    }
+  });
+
+  app.post("/api/ai/productivity-analysis", async (req, res) => {
+    try {
+      const { userId, timeframe = 'week' } = req.body;
+      if (!userId) {
+        return res.status(400).json({ error: 'User ID is required' });
+      }
+      
+      const activities = await storage.getUserWorkActivities(userId, 200);
+      
+      const { groqService } = await import('./services/groqService');
+      const analysis = await groqService.analyzeProductivity(activities, timeframe);
+      
+      res.json({ analysis });
+    } catch (error) {
+      console.error('Error analyzing productivity:', error);
+      res.status(500).json({ error: 'Failed to analyze productivity' });
+    }
+  });
+
+  app.post("/api/ai/weekly-report", async (req, res) => {
+    try {
+      const { userId } = req.body;
+      if (!userId) {
+        return res.status(400).json({ error: 'User ID is required' });
+      }
+      
+      const activities = await storage.getUserWorkActivities(userId, 300);
+      const userProfile = await storage.getUserProfile(userId);
+      
+      const { groqService } = await import('./services/groqService');
+      const report = await groqService.generateWeeklyReport(activities, {
+        name: userProfile?.displayName,
+        timezone: userProfile?.timezone
+      });
+      
+      res.json({ report });
+    } catch (error) {
+      console.error('Error generating weekly report:', error);
+      res.status(500).json({ error: 'Failed to generate weekly report' });
     }
   });
 

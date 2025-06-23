@@ -19,6 +19,11 @@ app.use((req, res, next) => {
   next();
 });
 
+// Explicitly handle favicon.ico requests
+app.get('/favicon.ico', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist/public/favicon.ico'));
+});
+
 // Serve static files from the dist/public directory
 app.use(express.static(path.join(__dirname, 'dist/public')));
 

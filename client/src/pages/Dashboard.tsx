@@ -10,29 +10,32 @@ import {
   CheckCircle,
   BarChart3,
   Activity,
-  GitCommit
+  GitCommit,
+  RefreshCw,
+  Settings
 } from "lucide-react";
+import { SimpleDraggableDashboard } from "@/components/SimpleDraggableDashboard";
+import { CustomizableDashboard } from "@/components/CustomizableDashboard";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DashboardHeader } from "@/components/DashboardHeader";
 
 import { ActivityFeed } from "@/components/ActivityFeed";
 import { AIInsights } from "@/components/AIInsights";
 import { QuickStats } from "@/components/QuickStats";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { useUserId } from "@/lib/userService";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 
 const Dashboard = () => {
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('darkMode') === 'true' || document.documentElement.classList.contains('dark');
-    }
-    return false;
-  });
+  const { toast } = useToast();
+  const { isDarkMode, toggleTheme } = useTheme();
   const { currentUser } = useAuth();
   const userId = useUserId(currentUser?.uid);
 
   // Fetch user's activities for stats
-  const { data: activities = [] } = useQuery({
+  const { data: activities = [], refetch } = useQuery({
     queryKey: ["/api/activities", userId],
     queryFn: async () => {
       if (!userId) return [];
@@ -50,13 +53,50 @@ const Dashboard = () => {
     meetings: activities.filter((a: any) => a.activityType === 'calendar_event').length,
     pullRequests: activities.filter((a: any) => a.activityType === 'pr').length,
   };
+  
+  // Mutation to force sync GitHub data
+  const syncGitHubMutation = useMutation({
+    mutationFn: async () => {
+      if (!userId) return;
+      
+      // Find GitHub integration
+      const integrationsResponse = await fetch(`${process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:5000/api'}/integrations?userId=${userId}`);
+      if (!integrationsResponse.ok) throw new Error('Failed to fetch integrations');
+      
+      const integrations = await integrationsResponse.json();
+      const githubIntegration = integrations.find((i: any) => i.provider === 'github' && i.isConnected);
+      
+      if (!githubIntegration) throw new Error('No connected GitHub integration found');
+      
+      // Force sync latest GitHub data
+      const syncResponse = await fetch(`${process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:5000/api'}/integrations/${githubIntegration.id}/github/sync-latest`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!syncResponse.ok) throw new Error('Failed to sync GitHub data');
+      
+      return syncResponse.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "GitHub Data Synced",
+        description: "Latest GitHub activities have been synced",
+      });
+      refetch();
+    },
+    onError: (error) => {
+      toast({
+        title: "Sync Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
 
-  const toggleTheme = () => {
-    const newMode = !isDarkMode;
-    setIsDarkMode(newMode);
-    localStorage.setItem('darkMode', newMode.toString());
-    document.documentElement.classList.toggle('dark', newMode);
-  };
+
 
   // Animation variants
   const containerVariants = {
@@ -121,6 +161,15 @@ const Dashboard = () => {
           </div>
         </motion.div>
 
+        {/* Tabs for different views */}
+        <Tabs defaultValue="dashboard" className="space-y-6">
+          <TabsList className="grid grid-cols-2 md:w-[300px] mb-4">
+            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+            <TabsTrigger value="customize">Customize</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="dashboard" className="space-y-6">
+
         {/* Stats Overview */}
         <motion.div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8" variants={itemVariants}>
           <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 border-blue-200 dark:border-blue-700">
@@ -184,8 +233,17 @@ const Dashboard = () => {
           </Card>
         </motion.div>
 
-        {/* Service Activities */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Customizable Dashboard Layout */}
+        <CustomizableDashboard 
+          userId={userId} 
+          activities={activities} 
+          stats={stats}
+          onSync={() => syncGitHubMutation.mutate()}
+          isLoading={syncGitHubMutation.isPending}
+        />
+        
+        {/* Service Activities (Hidden - replaced by customizable layout) */}
+        <div className="hidden grid-cols-1 lg:grid-cols-2 gap-6">
           {/* GitHub Activities */}
           <Card className="shadow-lg">
             <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800/50 dark:to-gray-700/50">
@@ -196,7 +254,25 @@ const Dashboard = () => {
                   </div>
                   GitHub Activity
                 </div>
-                <Badge variant="secondary" className="dark:bg-gray-700 dark:text-gray-200">{activities.filter((a: any) => a.provider === 'github').length}</Badge>
+                <div className="flex items-center gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => syncGitHubMutation.mutate()}
+                    disabled={syncGitHubMutation.isPending}
+                    className="h-8 px-2"
+                  >
+                    <motion.div
+                      animate={syncGitHubMutation.isPending ? { rotate: 360 } : {}}
+                      transition={{ duration: 1, repeat: syncGitHubMutation.isPending ? Infinity : 0, ease: "linear" }}
+                      className="mr-1"
+                    >
+                      <RefreshCw className="h-3 w-3" />
+                    </motion.div>
+                    Sync
+                  </Button>
+                  <Badge variant="secondary" className="dark:bg-gray-700 dark:text-gray-200">{activities.filter((a: any) => a.provider === 'github').length}</Badge>
+                </div>
               </CardTitle>
               <CardDescription>Recent commits, pull requests, and issues</CardDescription>
             </CardHeader>
@@ -306,6 +382,14 @@ const Dashboard = () => {
             {userId && <ActivityFeed userId={userId} />}
           </CardContent>
         </Card>
+        
+          </TabsContent>
+          
+          {/* Customize Tab */}
+          <TabsContent value="customize" className="space-y-6">
+            <SimpleDraggableDashboard userId={userId} />
+          </TabsContent>
+        </Tabs>
       </motion.main>
     </div>
   );

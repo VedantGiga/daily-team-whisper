@@ -11,6 +11,18 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const userProfiles = pgTable("user_profiles", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().unique(),
+  displayName: text("display_name"),
+  bio: text("bio"),
+  location: text("location"),
+  timezone: text("timezone").default("UTC"),
+  profilePhotoUrl: text("profile_photo_url"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const integrations = pgTable("integrations", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
@@ -55,10 +67,18 @@ export const dailySummaries = pgTable("daily_summaries", {
 });
 
 // Relations
-export const usersRelations = relations(users, ({ many }) => ({
+export const usersRelations = relations(users, ({ one, many }) => ({
+  profile: one(userProfiles),
   integrations: many(integrations),
   workActivities: many(workActivities),
   dailySummaries: many(dailySummaries),
+}));
+
+export const userProfilesRelations = relations(userProfiles, ({ one }) => ({
+  user: one(users, {
+    fields: [userProfiles.userId],
+    references: [users.id],
+  }),
 }));
 
 export const integrationsRelations = relations(integrations, ({ one, many }) => ({
@@ -110,6 +130,12 @@ export const insertDailySummarySchema = createInsertSchema(dailySummaries).omit(
   createdAt: true,
 });
 
+export const insertUserProfileSchema = createInsertSchema(userProfiles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -119,3 +145,5 @@ export type WorkActivity = typeof workActivities.$inferSelect;
 export type InsertWorkActivity = z.infer<typeof insertWorkActivitySchema>;
 export type DailySummary = typeof dailySummaries.$inferSelect;
 export type InsertDailySummary = z.infer<typeof insertDailySummarySchema>;
+export type UserProfile = typeof userProfiles.$inferSelect;
+export type InsertUserProfile = z.infer<typeof insertUserProfileSchema>;

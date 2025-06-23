@@ -11,8 +11,9 @@ import {
   DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Moon, Sun, User, Settings, Mail, LogOut, Menu, Home, FileText, Plug, Users, UserCircle } from "lucide-react";
+import { Moon, Sun, User, Settings, Mail, LogOut, Menu, Home, FileText, Plug, Users, UserCircle, HelpCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useProfile } from "@/contexts/ProfileContext";
 import { NetworkStatusBadge } from "@/components/NetworkStatus";
 import autoBriefLogo from "@/assets/autobrief-logo.png";
 import { Link } from "wouter";
@@ -24,6 +25,7 @@ interface DashboardHeaderProps {
 
 export const DashboardHeader = ({ onThemeToggle, isDarkMode }: DashboardHeaderProps) => {
   const { currentUser, userProfile, logout } = useAuth();
+  const { profileData } = useProfile();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleSignOut = async () => {
@@ -83,6 +85,12 @@ export const DashboardHeader = ({ onThemeToggle, isDarkMode }: DashboardHeaderPr
                 Team
               </Button>
             </Link>
+            
+            <Link to="/ai-insights">
+              <Button variant="ghost" size="sm" className="rounded-full px-4 hover:bg-white dark:hover:bg-slate-800 transition-all duration-200 bg-gradient-to-r from-purple-500/10 to-blue-500/10 text-purple-600 dark:text-purple-400">
+                ✨ AI Insights
+              </Button>
+            </Link>
           </nav>
 
           {/* Mobile Menu */}
@@ -140,14 +148,14 @@ export const DashboardHeader = ({ onThemeToggle, isDarkMode }: DashboardHeaderPr
                           Integrations
                         </Button>
                       </Link>
-                      <Link to="/profiles">
+                      <Link to="/profile">
                         <Button 
                           variant="ghost" 
                           className="w-full justify-start h-12 text-base"
                           onClick={() => setIsMobileMenuOpen(false)}
                         >
                           <UserCircle className="mr-3 h-5 w-5" />
-                          Profiles
+                          Profile
                         </Button>
                       </Link>
                       <Link to="/team">
@@ -158,6 +166,16 @@ export const DashboardHeader = ({ onThemeToggle, isDarkMode }: DashboardHeaderPr
                         >
                           <Users className="mr-3 h-5 w-5" />
                           Team
+                        </Button>
+                      </Link>
+                      <Link to="/support">
+                        <Button 
+                          variant="ghost" 
+                          className="w-full justify-start h-12 text-base"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          <HelpCircle className="mr-3 h-5 w-5" />
+                          Support
                         </Button>
                       </Link>
                     </div>
@@ -172,13 +190,16 @@ export const DashboardHeader = ({ onThemeToggle, isDarkMode }: DashboardHeaderPr
                       {isDarkMode ? <Sun className="mr-3 h-5 w-5" /> : <Moon className="mr-3 h-5 w-5" />}
                       {isDarkMode ? 'Light Mode' : 'Dark Mode'}
                     </Button>
-                    <Button 
-                      variant="ghost" 
-                      className="w-full justify-start h-12 text-base"
-                    >
-                      <Settings className="mr-3 h-5 w-5" />
-                      Settings
-                    </Button>
+                    <Link to="/settings">
+                      <Button 
+                        variant="ghost" 
+                        className="w-full justify-start h-12 text-base"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <Settings className="mr-3 h-5 w-5" />
+                        Settings
+                      </Button>
+                    </Link>
                     <Button 
                       variant="ghost" 
                       className="w-full justify-start h-12 text-base text-red-600 hover:text-red-700"
@@ -215,31 +236,37 @@ export const DashboardHeader = ({ onThemeToggle, isDarkMode }: DashboardHeaderPr
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                   <Avatar className="h-10 w-10">
-                    <AvatarImage src={currentUser?.photoURL || ''} alt={currentUser?.displayName || 'User'} />
+                    <AvatarImage src={profileData.profilePhotoUrl || currentUser?.photoURL || ''} alt={profileData.displayName || currentUser?.displayName || 'User'} />
                     <AvatarFallback className="bg-purple-600 text-white">
-                      {currentUser?.displayName ? getInitials(currentUser.displayName) : 'U'}
+                      {(profileData.displayName || currentUser?.displayName) ? getInitials(profileData.displayName || currentUser.displayName) : 'U'}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56" align="end">
                 <div className="px-2 py-1.5 text-sm">
-                  <p className="font-medium">{currentUser?.displayName || 'User'}</p>
+                  <p className="font-medium">{profileData.displayName || currentUser?.displayName || 'User'}</p>
                   <p className="text-muted-foreground text-xs">{currentUser?.email}</p>
                 </div>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <User className="mr-2 h-4 w-4" />
-                  Profile
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Settings className="mr-2 h-4 w-4" />
-                  Settings
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Mail className="mr-2 h-4 w-4" />
-                  Support
-                </DropdownMenuItem>
+                <Link to="/account">
+                  <DropdownMenuItem>
+                    <User className="mr-2 h-4 w-4" />
+                    Account
+                  </DropdownMenuItem>
+                </Link>
+                <Link to="/settings">
+                  <DropdownMenuItem>
+                    <Settings className="mr-2 h-4 w-4" />
+                    Settings
+                  </DropdownMenuItem>
+                </Link>
+                <Link to="/support">
+                  <DropdownMenuItem>
+                    <Mail className="mr-2 h-4 w-4" />
+                    Support
+                  </DropdownMenuItem>
+                </Link>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="text-red-600" onClick={handleSignOut}>
                   <LogOut className="mr-2 h-4 w-4" />

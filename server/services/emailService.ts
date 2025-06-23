@@ -3,11 +3,15 @@ import { Resend } from 'resend';
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export class EmailService {
-  static async sendDailySummary(userEmail: string, summary: string, date: string) {
+  static async sendDailySummary(userEmail: string, summary: string, date: string): Promise<any> {
+    console.log(`Attempting to send email to ${userEmail} for date ${date}`);
+    
     if (!process.env.RESEND_API_KEY) {
       console.log('Resend API key not configured, skipping email');
       return;
     }
+    
+    console.log(`Using Resend API key: ${process.env.RESEND_API_KEY.substring(0, 5)}...`);
 
     try {
       const formattedDate = new Date(date).toLocaleDateString('en-US', {
@@ -18,18 +22,24 @@ export class EmailService {
       });
 
       const htmlContent = this.formatSummaryAsHTML(summary, formattedDate);
+      console.log('HTML content generated successfully');
 
-      await resend.emails.send({
+      console.log('Sending email via Resend API...');
+      const response = await resend.emails.send({
         from: 'onboarding@resend.dev',
         to: [userEmail],
         subject: `Daily Brief - ${formattedDate}`,
         html: htmlContent,
       });
-
+      
+      console.log('Resend API response:', JSON.stringify(response));
       console.log(`Daily summary email sent to ${userEmail}`);
+      
+      return response;
     } catch (error) {
       console.error('Error sending email:', error);
-      console.log('Daily summary (email failed):', summary);
+      console.error('Error details:', JSON.stringify(error, null, 2));
+      console.log('Daily summary (email failed):', summary.substring(0, 100) + '...');
     }
   }
 
