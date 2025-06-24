@@ -53,6 +53,8 @@ const Profile = () => {
       }
     },
     enabled: !!userId,
+    retry: false,
+    refetchOnWindowFocus: false,
   });
 
   // Update profile mutation
@@ -168,6 +170,9 @@ const Profile = () => {
         description: "Your profile photo has been updated successfully.",
       });
     },
+    onMutate: () => {
+      setIsUploadingPhoto(true);
+    },
     onError: (error: any) => {
       console.error('Photo upload error:', error);
       let message = "Failed to upload photo. Please try again.";
@@ -210,8 +215,6 @@ const Profile = () => {
       });
       return;
     }
-
-    setIsUploadingPhoto(true);
     
     // Create preview immediately for smooth UX
     const reader = new FileReader();

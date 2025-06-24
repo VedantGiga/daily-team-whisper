@@ -101,6 +101,7 @@ The application uses a monorepo structure with shared schema definitions and Typ
   - Optimized images automatically (400x400, WebP format, face detection cropping)
   - Integrated with both Account and Profile pages
   - Added fallback handling when Cloudinary credentials not configured
+  - Fixed React Query configuration to prevent console errors and improved error handling
 - June 20, 2025. Complete Notion integration implementation:
   - Added full Notion API integration with client setup and database management
   - Created structured Notion databases: Work Activities and Daily Summaries
