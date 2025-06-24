@@ -1,55 +1,44 @@
-import express from 'express';
+// Production server that imports and runs the TypeScript server
+import { spawn } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import fs from 'fs';
-import cors from 'cors';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const app = express();
-const PORT = process.env.PORT || 3000;
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+console.log('🚀 Starting Daily Team Whisper production server...');
+console.log('📁 Working directory:', __dirname);
+console.log('🌍 Environment:', process.env.NODE_ENV);
 
-// Log middleware to debug requests
-app.use((req, res, next) => {
-  console.log(`${req.method} ${req.url}`);
-  next();
-});
-
-// Explicitly handle favicon.ico requests
-app.get('/favicon.ico', (req, res) => {
-  res.sendFile(path.join(__dirname, 'dist/public/favicon.ico'));
-});
-
-// Serve static files from the dist/public directory
-app.use(express.static(path.join(__dirname, 'dist/public')));
-
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok' });
-});
-
-// Catch-all route for SPA
-app.get('*', (req, res) => {
-  // Skip API routes
-  if (req.path.startsWith('/api/')) {
-    return res.status(404).json({ error: 'API endpoint not found' });
-  }
-  
-  // Send the SPA index.html for all other routes
-  const indexPath = path.join(__dirname, 'dist/public/index.html');
-  
-  if (fs.existsSync(indexPath)) {
-    res.sendFile(indexPath);
-  } else {
-    res.status(404).send('Application not found. Please check your build configuration.');
+// Start the TypeScript server using tsx
+const serverProcess = spawn('npx', ['tsx', 'server/index.ts'], {
+  cwd: __dirname,
+  stdio: 'inherit',
+  env: {
+    ...process.env,
+    NODE_ENV: 'production'
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Serving static files from: ${path.join(__dirname, 'dist/public')}`);
+serverProcess.on('error', (error) => {
+  console.error('❌ Failed to start server:', error);
+  process.exit(1);
+});
+
+serverProcess.on('exit', (code, signal) => {
+  console.log(`🔄 Server process exited with code ${code} and signal ${signal}`);
+  if (code !== 0) {
+    console.error('❌ Server exited with non-zero code');
+    process.exit(code || 1);
+  }
+});
+
+// Handle graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('📴 Received SIGTERM, shutting down gracefully...');
+  serverProcess.kill('SIGTERM');
+});
+
+process.on('SIGINT', () => {
+  console.log('📴 Received SIGINT, shutting down gracefully...');
+  serverProcess.kill('SIGINT');
 });

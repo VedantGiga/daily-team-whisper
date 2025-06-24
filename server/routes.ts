@@ -2367,7 +2367,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Import and setup SPA handler for production
   if (process.env.NODE_ENV === 'production') {
-    const { setupSpaHandler } = await import('./spa-handler.js');
+    const { setupSpaHandler } = await import('./spa-handler');
     setupSpaHandler(app);
   }
 
