@@ -41,10 +41,15 @@ const Account = () => {
     queryFn: async () => {
       if (!userId) return null;
       console.log('Fetching profile for userId:', userId);
-      const response = await fetch(`${process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:5000/api'}/profile/${userId}`);
-      console.log('Profile fetch response:', response.status, response.statusText);
-      if (!response.ok) return null;
-      return response.json();
+      try {
+        const response = await fetch(`/api/profile/${userId}`);
+        console.log('Profile fetch response:', response.status, response.statusText);
+        if (!response.ok) return null;
+        return response.json();
+      } catch (error) {
+        console.error('Profile fetch error:', error);
+        return null;
+      }
     },
     enabled: !!userId,
   });
@@ -53,7 +58,7 @@ const Account = () => {
   const updateProfileMutation = useMutation({
     mutationFn: async (profileData: any) => {
       console.log('Updating profile for userId:', userId, 'with data:', profileData);
-      const url = `${process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:5000/api'}/profile/${userId}`;
+      const url = `/api/profile/${userId}`;
       console.log('Update URL:', url);
       const response = await fetch(url, {
         method: 'PUT',
@@ -85,11 +90,17 @@ const Account = () => {
       // Refetch to ensure consistency
       refetch();
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
       console.error('Profile update error:', error);
+      let message = "Failed to update profile. Please try again.";
+      if (error instanceof Error) {
+        message = error.message;
+      } else if (typeof error === 'string') {
+        message = error;
+      }
       toast({
         title: "Update Failed",
-        description: error.message || "Failed to update profile. Please try again.",
+        description: message,
         variant: "destructive"
       });
     }
@@ -127,7 +138,7 @@ const Account = () => {
       formData.append('photo', file);
       
       const response = await fetch(
-        `${process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:5000/api'}/profile/${userId}/upload-photo`,
+        `/api/profile/${userId}/upload-photo`,
         {
           method: 'POST',
           body: formData,
@@ -156,11 +167,17 @@ const Account = () => {
         description: "Your profile photo has been updated successfully.",
       });
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
       console.error('Photo upload error:', error);
+      let message = "Failed to upload photo. Please try again.";
+      if (error instanceof Error) {
+        message = error.message;
+      } else if (typeof error === 'string') {
+        message = error;
+      }
       toast({
         title: "Upload Failed",
-        description: error.message || "Failed to upload photo. Please try again.",
+        description: message,
         variant: "destructive"
       });
     },

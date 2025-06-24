@@ -45,7 +45,7 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
       }
       
       try {
-        const response = await fetch(`${process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:5000/api'}/profile/${userId}`);
+        const response = await fetch(`/api/profile/${userId}`);
         if (response.ok) {
           const profile = await response.json();
           setProfileData({

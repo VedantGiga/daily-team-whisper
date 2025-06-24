@@ -1,0 +1,60 @@
+Account component - userId: 2131821498
+Generated user ID 2131821498 for Firebase UID: jlBbqPeoKVVxe5yNtGNuR9U155v2
+Account component - currentUser: 
+_UserImpl {providerId: "firebase", proactiveRefresh: ProactiveRefresh, reloadUserInfo: {…}, reloadListener: null, uid: "jlBbqPeoKVVxe5yNtGNuR9U155v2", …}
+Account component - userId: 2131821498
+Generated user ID 2131821498 for Firebase UID: jlBbqPeoKVVxe5yNtGNuR9U155v2
+Account component - currentUser: 
+_UserImpl {providerId: "firebase", proactiveRefresh: ProactiveRefresh, reloadUserInfo: {…}, reloadListener: null, uid: "jlBbqPeoKVVxe5yNtGNuR9U155v2", …}
+Account component - userId: 2131821498
+Generated user ID 2131821498 for Firebase UID: jlBbqPeoKVVxe5yNtGNuR9U155v2
+Account component - currentUser: 
+_UserImpl {providerId: "firebase", proactiveRefresh: ProactiveRefresh, reloadUserInfo: {…}, reloadListener: null, uid: "jlBbqPeoKVVxe5yNtGNuR9U155v2", …}
+Account component - userId: 2131821498
+Generated user ID 2131821498 for Firebase UID: jlBbqPeoKVVxe5yNtGNuR9U155v2
+Account component - currentUser: 
+_UserImpl {providerId: "firebase", proactiveRefresh: ProactiveRefresh, reloadUserInfo: {…}, reloadListener: null, uid: "jlBbqPeoKVVxe5yNtGNuR9U155v2", …}
+Account component - userId: 2131821498
+Generated user ID 2131821498 for Firebase UID: jlBbqPeoKVVxe5yNtGNuR9U155v2
+Account component - currentUser: 
+_UserImpl {providerId: "firebase", proactiveRefresh: ProactiveRefresh, reloadUserInfo: {…}, reloadListener: null, uid: "jlBbqPeoKVVxe5yNtGNuR9U155v2", …}
+Account component - userId: 2131821498
+Generated user ID 2131821498 for Firebase UID: jlBbqPeoKVVxe5yNtGNuR9U155v2
+Account component - currentUser: 
+_UserImpl {providerId: "firebase", proactiveRefresh: ProactiveRefresh, reloadUserInfo: {…}, reloadListener: null, uid: "jlBbqPeoKVVxe5yNtGNuR9U155v2", …}
+Account component - userId: 2131821498
+Generated user ID 2131821498 for Firebase UID: jlBbqPeoKVVxe5yNtGNuR9U155v2
+Account component - currentUser: 
+_UserImpl {providerId: "firebase", proactiveRefresh: ProactiveRefresh, reloadUserInfo: {…}, reloadListener: null, uid: "jlBbqPeoKVVxe5yNtGNuR9U155v2", …}
+Account component - userId: 2131821498
+Photo upload error: 
+TypeError {}
+
+Generated user ID 2131821498 for Firebase UID: jlBbqPeoKVVxe5yNtGNuR9U155v2
+Account component - currentUser: 
+_UserImpl {providerId: "firebase", proactiveRefresh: ProactiveRefresh, reloadUserInfo: {…}, reloadListener: null, uid: "jlBbqPeoKVVxe5yNtGNuR9U155v2", …}
+Account component - userId: 2131821498
+Failed to fetch
+Updating profile for userId: 2131821498 with data: 
+Object {displayName: "vedant", bio: "sddzvcsfcwe", location: "India", timezone: "Asia/Kolkata", profilePhotoUrl: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsK…"}
+Update URL: http://localhost:5000/api/profile/2131821498
+Generated user ID 2131821498 for Firebase UID: jlBbqPeoKVVxe5yNtGNuR9U155v2
+Account component - currentUser: 
+_UserImpl {providerId: "firebase", proactiveRefresh: ProactiveRefresh, reloadUserInfo: {…}, reloadListener: null, uid: "jlBbqPeoKVVxe5yNtGNuR9U155v2", …}
+Account component - userId: 2131821498
+Profile update error: 
+TypeError {}
+
+Generated user ID 2131821498 for Firebase UID: jlBbqPeoKVVxe5yNtGNuR9U155v2
+Account component - currentUser: 
+_UserImpl {providerId: "firebase", proactiveRefresh: ProactiveRefresh, reloadUserInfo: {…}, reloadListener: null, uid: "jlBbqPeoKVVxe5yNtGNuR9U155v2", …}
+Account component - userId: 2131821498
+Failed to fetch
+Generated user ID 2131821498 for Firebase UID: jlBbqPeoKVVxe5yNtGNuR9U155v2
+Account component - currentUser: 
+_UserImpl {providerId: "firebase", proactiveRefresh: ProactiveRefresh, reloadUserInfo: {…}, reloadListener: null, uid: "jlBbqPeoKVVxe5yNtGNuR9U155v2", …}
+Account component - userId: 2131821498
+Generated user ID 2131821498 for Firebase UID: jlBbqPeoKVVxe5yNtGNuR9U155v2
+Account component - currentUser: 
+_UserImpl {providerId: "firebase", proactiveRefresh: ProactiveRefresh, reloadUserInfo: {…}, reloadListener: null, uid: "jlBbqPeoKVVxe5yNtGNuR9U155v2", …}
+Account component - userId: 2131821498
