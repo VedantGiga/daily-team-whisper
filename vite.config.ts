@@ -8,28 +8,32 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   base: "/",
   plugins: [react()],
-  publicDir: 'public',
+  publicDir: "public",
   server: {
     port: 3000,
     strictPort: true,
     proxy: {
-      '/api': {
-        target: 'http://localhost:5000',
+      "/api": {
+        target: "http://localhost:5000",
         changeOrigin: true,
-        secure: false
+        secure: false,
       },
-      '/health': {
-        target: 'http://localhost:5000',
+      "/health": {
+        target: "http://localhost:5000",
         changeOrigin: true,
-        secure: false
+        secure: false,
       },
-      '/favicon.ico': {
-        target: 'http://localhost:5000',
+      "/favicon.ico": {
+        target: "http://localhost:5000",
         changeOrigin: true,
-        secure: false
-      }
+        secure: false,
+      },
     },
-    allowedHosts: ['5940-2401-4900-8820-77ab-410d-5d13-c8fe-7929.ngrok-free.app', 'localhost'],
+    allowedHosts: [
+      "5940-2401-4900-8820-77ab-410d-5d13-c8fe-7929.ngrok-free.app",
+      "818c8593-89e8-4773-b845-5c49e9459543-00-2tu0fb8lculis.janeway.replit.dev",
+      "localhost",
+    ],
   },
   resolve: {
     alias: {
@@ -46,11 +50,10 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: undefined,
-        entryFileNames: 'assets/[name].js',
-        chunkFileNames: 'assets/[name].js',
-        assetFileNames: 'assets/[name].[ext]'
-      }
+        entryFileNames: "assets/[name].js",
+        chunkFileNames: "assets/[name].js",
+        assetFileNames: "assets/[name].[ext]",
+      },
     },
   },
 });
-

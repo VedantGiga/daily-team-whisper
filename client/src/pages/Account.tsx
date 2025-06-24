@@ -13,7 +13,7 @@ import { useProfile } from '@/contexts/ProfileContext';
 import { useToast } from '@/hooks/use-toast';
 import { useUserId } from '@/lib/userService';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { User, Mail, Calendar, MapPin, Edit, Save, X, Camera } from 'lucide-react';
+import { User, Mail, Calendar, MapPin, Edit, Save, X, Camera, Loader2 } from 'lucide-react';
 
 const Account = () => {
   const { currentUser } = useAuth();
@@ -23,6 +23,7 @@ const Account = () => {
   const userId = useUserId(currentUser?.uid);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [formData, setFormData] = useState({
     displayName: '',
     bio: '',
@@ -119,17 +120,87 @@ const Account = () => {
     updateProfileMutation.mutate(formData);
   };
 
-  const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      // Create a preview URL
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        setFormData(prev => ({ ...prev, profilePhotoUrl: result }));
-      };
-      reader.readAsDataURL(file);
+  // Photo upload mutation
+  const uploadPhotoMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append('photo', file);
+      
+      const response = await fetch(
+        `${process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:5000/api'}/profile/${userId}/upload-photo`,
+        {
+          method: 'POST',
+          body: formData,
+        }
+      );
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to upload photo');
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setFormData(prev => ({ ...prev, profilePhotoUrl: data.photoUrl }));
+      updateProfileData({ profilePhotoUrl: data.photoUrl });
+      refetch();
+      toast({
+        title: "Photo Updated",
+        description: "Your profile photo has been updated successfully.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Upload Failed",
+        description: error.message || "Failed to upload photo. Please try again.",
+        variant: "destructive"
+      });
+    },
+    onSettled: () => {
+      setIsUploadingPhoto(false);
     }
+  });
+
+  const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File Too Large",
+        description: "Please select an image smaller than 5MB.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid File Type",
+        description: "Please select a valid image file.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsUploadingPhoto(true);
+    
+    // Create preview immediately for smooth UX
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const result = e.target?.result as string;
+      setFormData(prev => ({ ...prev, profilePhotoUrl: result }));
+    };
+    reader.readAsDataURL(file);
+
+    // Upload to Cloudinary
+    uploadPhotoMutation.mutate(file);
+    
+    // Reset file input
+    event.target.value = '';
   };
 
   const handleCancel = () => {
@@ -165,13 +236,24 @@ const Account = () => {
                     {formData.displayName?.charAt(0) || currentUser?.displayName?.charAt(0) || currentUser?.email?.charAt(0) || 'U'}
                   </AvatarFallback>
                 </Avatar>
+                {/* Loading overlay when uploading */}
+                {isUploadingPhoto && (
+                  <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center">
+                    <Loader2 className="h-6 w-6 text-white animate-spin" />
+                  </div>
+                )}
                 {isEditing && (
                   <Button
                     size="sm"
                     className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full p-0"
                     onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploadingPhoto}
                   >
-                    <Camera className="h-4 w-4" />
+                    {isUploadingPhoto ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Camera className="h-4 w-4" />
+                    )}
                   </Button>
                 )}
                 <input
@@ -180,6 +262,7 @@ const Account = () => {
                   accept="image/*"
                   onChange={handlePhotoUpload}
                   className="hidden"
+                  disabled={isUploadingPhoto}
                 />
               </div>
               <CardTitle className="text-xl">{formData.displayName || currentUser?.displayName || 'User'}</CardTitle>

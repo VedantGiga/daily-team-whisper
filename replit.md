@@ -93,6 +93,14 @@ AutoBrief is a full-stack web application that provides AI-powered work summarie
 The application uses a monorepo structure with shared schema definitions and TypeScript configurations for consistency across frontend and backend codebases.
 
 ## Changelog
+- June 24, 2025. Cloudinary profile photo upload integration:
+  - Added complete Cloudinary integration for profile photo uploads
+  - Implemented smooth UX with loading states and image previews
+  - Added comprehensive error handling and file validation
+  - Created backend endpoints with secure file upload handling
+  - Optimized images automatically (400x400, WebP format, face detection cropping)
+  - Integrated with both Account and Profile pages
+  - Added fallback handling when Cloudinary credentials not configured
 - June 20, 2025. Complete Notion integration implementation:
   - Added full Notion API integration with client setup and database management
   - Created structured Notion databases: Work Activities and Daily Summaries
