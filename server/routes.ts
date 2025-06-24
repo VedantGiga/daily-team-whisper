@@ -7,7 +7,7 @@ import { SlackService } from "./services/slackService";
 import { GoogleCalendarService } from "./services/googleCalendarService";
 import { JiraService } from "./services/jiraService";
 import { AIService } from "./services/aiService";
-import { upload, uploadToCloudinary, deleteFromCloudinary, isCloudinaryConfigured } from "./cloudinary";
+import { upload, uploadToCloudinary, deleteFromCloudinary, isCloudinaryConfigured, convertToDataURL } from "./cloudinary";
 import { 
   insertIntegrationSchema, 
   insertWorkActivitySchema, 

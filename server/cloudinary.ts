@@ -17,6 +17,11 @@ export const isCloudinaryConfigured = (): boolean => {
   );
 };
 
+// Convert image to base64 data URL for storage when Cloudinary is not available
+export const convertToDataURL = (buffer: Buffer, mimetype: string): string => {
+  return `data:${mimetype};base64,${buffer.toString('base64')}`;
+};
+
 // Configure multer for file uploads
 const storage = multer.memoryStorage();
 export const upload = multer({ 

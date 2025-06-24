@@ -152,6 +152,7 @@ const Profile = () => {
       });
     },
     onError: (error: Error) => {
+      console.error('Photo upload error:', error);
       toast({
         title: "Upload Failed",
         description: error.message || "Failed to upload photo. Please try again.",
