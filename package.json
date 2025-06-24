@@ -92,7 +92,7 @@
     "react-icons": "^5.4.0",
     "react-resizable-panels": "^2.1.7",
     "react-router-dom": "^7.6.2",
-    "recharts": "^2.15.2",
+    "recharts": "^2.15.4",
     "resend": "^4.6.0",
     "sonner": "^2.0.5",
     "tailwind-merge": "^2.6.0",

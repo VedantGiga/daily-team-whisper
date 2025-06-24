@@ -93,6 +93,14 @@ AutoBrief is a full-stack web application that provides AI-powered work summarie
 The application uses a monorepo structure with shared schema definitions and TypeScript configurations for consistency across frontend and backend codebases.
 
 ## Changelog
+- June 24, 2025. Enhanced Dashboard with Analytics, Quick Actions, and Mobile Improvements:
+  - Added comprehensive analytics dashboard with charts and productivity insights
+  - Implemented quick actions panel for common productivity tasks
+  - Created recent activity feed with filtering and real-time updates
+  - Enhanced mobile UI with better touch interactions and responsive design
+  - Added data export functionality for user privacy and data portability
+  - Improved AI summary generation with customizable tone and filtering
+  - Added performance optimizations and smooth animations
 - June 24, 2025. Cloudinary profile photo upload integration:
   - Added complete Cloudinary integration for profile photo uploads
   - Implemented smooth UX with loading states and image previews
