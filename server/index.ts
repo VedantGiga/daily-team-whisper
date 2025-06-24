@@ -152,9 +152,14 @@ app.post('/api/run-cron', async (req, res) => {
   }
 });
 
-// In production, serve static files from the dist directory
+// In production, serve React application assets
 if (process.env.NODE_ENV === 'production') {
-  // This will be handled by the SPA handler after routes are registered
+  const distPath = path.join(__dirname, '../dist/public');
+  console.log('🚀 Serving React app from:', distPath);
+  
+  // Serve static assets (JS, CSS, images)
+  app.use('/assets', express.static(path.join(distPath, 'assets')));
+  app.use(express.static(distPath, { index: false }));
 }
 
 // Register all routes
