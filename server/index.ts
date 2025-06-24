@@ -54,10 +54,21 @@ app.get('/favicon.ico', (req, res) => {
   res.sendFile(path.join(__dirname, '../client/public/favicon.ico'));
 });
 
-// Serve the root path in development mode
+// Serve the root path
 if (process.env.NODE_ENV === 'development') {
   app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, './fallback-index.html'));
+  });
+} else {
+  // In production, serve the built frontend
+  app.get('/', (req, res) => {
+    const indexPath = path.join(process.cwd(), 'dist/public/index.html');
+    res.sendFile(indexPath, (err) => {
+      if (err) {
+        console.error('Error serving index.html:', err);
+        res.status(404).json({ error: 'Frontend not found. Make sure the build completed successfully.' });
+      }
+    });
   });
 }
 

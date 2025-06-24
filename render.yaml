@@ -56,4 +56,4 @@ services:
         value: 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
       - key: RESEND_API_KEY
         value: rre_ffqMVZGC_NKyHJ9QMU3jW9uA6r8TUDuGn
-    healthCheckPath: /
+    healthCheckPath: /health

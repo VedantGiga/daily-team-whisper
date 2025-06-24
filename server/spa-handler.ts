@@ -1,10 +1,8 @@
 import express from 'express';
 import path from 'path';
 
-// In production, the server is running from the dist directory
-const publicPath = process.env.NODE_ENV === 'production' 
-  ? path.resolve('./dist/public')
-  : path.resolve('./dist/public');
+// In production, serve the built frontend files
+const publicPath = path.resolve(process.cwd(), 'dist/public');
 
 export function setupSpaHandler(app: express.Express) {
   // Serve static files
