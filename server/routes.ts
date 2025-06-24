@@ -69,45 +69,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'No photo file provided' });
       }
 
-      // Check if Cloudinary is configured
-      if (!isCloudinaryConfigured()) {
-        return res.status(503).json({ 
-          error: 'Photo upload service is not configured. Please contact support.' 
-        });
-      }
-
       // Get existing profile to delete old photo if exists
       const existing = profiles[userId] || {};
       
-      try {
-        // Upload new photo to Cloudinary
-        const photoUrl = await uploadToCloudinary(req.file.buffer, userId);
-        
-        // Delete old photo from Cloudinary if exists
-        if (existing.profilePhotoUrl && existing.profilePhotoUrl.includes('cloudinary')) {
-          await deleteFromCloudinary(existing.profilePhotoUrl);
+      let photoUrl: string;
+
+      if (isCloudinaryConfigured()) {
+        try {
+          // Upload to Cloudinary
+          photoUrl = await uploadToCloudinary(req.file.buffer, userId);
+          
+          // Delete old photo from Cloudinary if exists
+          if (existing.profilePhotoUrl && existing.profilePhotoUrl.includes('cloudinary')) {
+            await deleteFromCloudinary(existing.profilePhotoUrl);
+          }
+          
+          console.log('Photo uploaded to Cloudinary for user:', userId);
+        } catch (cloudinaryError) {
+          console.error('Cloudinary upload failed, using fallback:', cloudinaryError);
+          // Fallback to base64 storage
+          photoUrl = convertToDataURL(req.file.buffer, req.file.mimetype);
         }
-        
-        // Update profile with new photo URL
-        profiles[userId] = {
-          ...existing,
-          userId,
-          profilePhotoUrl: photoUrl,
-          updatedAt: new Date().toISOString(),
-          createdAt: existing.createdAt || new Date().toISOString()
-        };
-        
-        console.log('Profile photo updated for user:', userId, 'new URL:', photoUrl);
-        res.json({ photoUrl, profile: profiles[userId] });
-      } catch (uploadError) {
-        console.error('Cloudinary upload error:', uploadError);
-        res.status(500).json({ 
-          error: 'Failed to upload photo to cloud storage. Please try again.' 
-        });
+      } else {
+        // Use base64 data URL as fallback when Cloudinary is not configured
+        photoUrl = convertToDataURL(req.file.buffer, req.file.mimetype);
+        console.log('Using base64 storage for user:', userId, '(Cloudinary not configured)');
       }
+      
+      // Update profile with new photo URL
+      profiles[userId] = {
+        ...existing,
+        userId,
+        profilePhotoUrl: photoUrl,
+        updatedAt: new Date().toISOString(),
+        createdAt: existing.createdAt || new Date().toISOString()
+      };
+      
+      console.log('Profile photo updated for user:', userId);
+      res.json({ photoUrl, profile: profiles[userId] });
     } catch (error) {
       console.error('Error uploading profile photo:', error);
-      res.status(500).json({ error: 'Failed to upload photo' });
+      res.status(500).json({ 
+        error: 'Failed to upload photo',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 
