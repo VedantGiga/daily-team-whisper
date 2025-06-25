@@ -17,7 +17,7 @@ export function securityHeaders(req: Request, res: Response, next: NextFunction)
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: https: blob:",
-    "connect-src 'self' https://api.github.com https://slack.com https://api.notion.com https://api.groq.com https://api.resend.com wss: ws:",
+    "connect-src 'self' https: wss: ws: https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://api.github.com https://slack.com https://api.notion.com https://api.groq.com https://api.resend.com",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'"

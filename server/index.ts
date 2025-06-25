@@ -25,8 +25,9 @@ app.set('trust proxy', 1);
 
 // Security middleware
 app.use(helmet({
-  contentSecurityPolicy: false, // We handle CSP in our custom middleware
-  crossOriginEmbedderPolicy: false
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: false
 }));
 app.use(securityHeaders);
 app.use(requestLogger);
@@ -36,14 +37,11 @@ app.use(rateLimiter);
 app.use('/api', apiRateLimiter);
 
 // CORS configuration
-const corsOptions: cors.CorsOptions = {
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://daily-team-whisper.onrender.com', 'https://autobrief-e6e9b.firebaseapp.com']
-    : true,
+app.use(cors({
+  origin: true,
   credentials: true,
   optionsSuccessStatus: 200
-};
-app.use(cors(corsOptions));
+}));
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
