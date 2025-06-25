@@ -17,6 +17,7 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
+import { errorHandler, notFoundHandler } from "./middleware/security";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // API info route
