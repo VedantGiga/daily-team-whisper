@@ -59,35 +59,39 @@ export const DashboardHeader = ({ onThemeToggle, isDarkMode }: DashboardHeaderPr
           </Link>
 
           {/* Navigation */}
-          <nav className="hidden md:flex items-center gap-2 bg-muted/50 rounded-full p-1">
+          <nav className="hidden md:flex items-center gap-8">
             <Link to="/dashboard">
-              <Button variant="ghost" size="sm" className="rounded-full px-4 hover:bg-white dark:hover:bg-slate-800 transition-all duration-200">
+              <Button variant="ghost" className="text-slate-700 dark:text-slate-300 hover:text-purple-600 dark:hover:text-purple-400 font-medium relative group">
                 Dashboard
+                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-purple-600 group-hover:w-full transition-all duration-300"></span>
               </Button>
             </Link>
             <Link to="/summaries">
-              <Button variant="ghost" size="sm" className="rounded-full px-4 hover:bg-white dark:hover:bg-slate-800 transition-all duration-200">
+              <Button variant="ghost" className="text-slate-700 dark:text-slate-300 hover:text-purple-600 dark:hover:text-purple-400 font-medium relative group">
                 Summaries
+                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-purple-600 group-hover:w-full transition-all duration-300"></span>
               </Button>
             </Link>
             <Link to="/integrations">
-              <Button variant="ghost" size="sm" className="rounded-full px-4 hover:bg-white dark:hover:bg-slate-800 transition-all duration-200">
+              <Button variant="ghost" className="text-slate-700 dark:text-slate-300 hover:text-purple-600 dark:hover:text-purple-400 font-medium relative group">
                 Integrations
+                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-purple-600 group-hover:w-full transition-all duration-300"></span>
               </Button>
             </Link>
             <Link to="/profiles">
-              <Button variant="ghost" size="sm" className="rounded-full px-4 hover:bg-white dark:hover:bg-slate-800 transition-all duration-200">
+              <Button variant="ghost" className="text-slate-700 dark:text-slate-300 hover:text-purple-600 dark:hover:text-purple-400 font-medium relative group">
                 Profiles
+                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-purple-600 group-hover:w-full transition-all duration-300"></span>
               </Button>
             </Link>
             <Link to="/team">
-              <Button variant="ghost" size="sm" className="rounded-full px-4 hover:bg-white dark:hover:bg-slate-800 transition-all duration-200">
+              <Button variant="ghost" className="text-slate-700 dark:text-slate-300 hover:text-purple-600 dark:hover:text-purple-400 font-medium relative group">
                 Team
+                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-purple-600 group-hover:w-full transition-all duration-300"></span>
               </Button>
             </Link>
-            
             <Link to="/ai-insights">
-              <Button variant="ghost" size="sm" className="rounded-full px-4 hover:bg-white dark:hover:bg-slate-800 transition-all duration-200 bg-gradient-to-r from-purple-500/10 to-blue-500/10 text-purple-600 dark:text-purple-400">
+              <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200">
                 ✨ AI Insights
               </Button>
             </Link>

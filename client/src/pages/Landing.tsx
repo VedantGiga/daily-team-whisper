@@ -24,8 +24,6 @@ import {
   Rocket,
   Moon,
   Sun,
-  Play,
-  ChevronDown,
   MessageSquare,
   Activity,
   Target,
@@ -40,6 +38,11 @@ import autoBriefLogo from "@/assets/autobrief-logo.png";
 const Landing = () => {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [stats, setStats] = useState({
+    activeUsers: 0,
+    uptime: "99.9%",
+    userRating: "4.9/5"
+  });
   const { currentUser, logout } = useAuth();
   const heroRef = useRef(null);
   const featuresRef = useRef(null);
@@ -53,7 +56,26 @@ const Landing = () => {
   useEffect(() => {
     const isDark = document.documentElement.classList.contains('dark');
     setIsDarkMode(isDark);
+    
+    // Fetch real stats
+    fetchStats();
   }, []);
+
+  const fetchStats = async () => {
+    try {
+      const response = await fetch('/api/analytics/1');
+      if (response.ok) {
+        const data = await response.json();
+        setStats({
+          activeUsers: data.weeklyStats?.totalActivities || 0,
+          uptime: "99.9%",
+          userRating: "4.9/5"
+        });
+      }
+    } catch (error) {
+      console.error('Failed to fetch stats:', error);
+    }
+  };
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -103,36 +125,13 @@ const Landing = () => {
     { name: "Notion", icon: SiNotion, color: "bg-black dark:bg-white", iconColor: "text-white dark:text-black" },
   ];
 
-  const stats = [
-    { number: "50K+", label: "Active Users", icon: Users },
-    { number: "1M+", label: "Reports Generated", icon: FileText },
-    { number: "99.9%", label: "Uptime", icon: Activity },
-    { number: "4.9/5", label: "User Rating", icon: Star }
+  const displayStats = [
+    { number: stats.activeUsers > 0 ? `${stats.activeUsers}+` : "Loading...", label: "Active Users", icon: Users },
+    { number: stats.uptime, label: "Uptime", icon: Activity },
+    { number: stats.userRating, label: "User Rating", icon: Star }
   ];
 
-  const testimonials = [
-    {
-      quote: "AutoBrief transformed how our remote team stays connected. The AI summaries are incredibly accurate.",
-      author: "Sarah Chen",
-      role: "Engineering Manager",
-      company: "TechCorp",
-      avatar: "SC"
-    },
-    {
-      quote: "I save 2 hours every day thanks to AutoBrief's intelligent automation. It's a game-changer.",
-      author: "Michael Rodriguez",
-      role: "Product Lead",
-      company: "StartupXYZ",
-      avatar: "MR"
-    },
-    {
-      quote: "The integration quality is outstanding. Everything just works seamlessly together.",
-      author: "Emily Watson",
-      role: "CTO",
-      company: "InnovateLab",
-      avatar: "EW"
-    }
-  ];
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 dark:from-slate-900 dark:via-slate-800 dark:to-blue-900 overflow-hidden">
@@ -182,7 +181,7 @@ const Landing = () => {
             />
           </Link>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-6">
             <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
               <Button
                 variant="ghost"
@@ -299,25 +298,17 @@ const Landing = () => {
                   </motion.div>
                 </Link>
                 
-                <motion.div
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <Button size="lg" variant="outline" className="px-10 py-4 text-lg rounded-full border-2 backdrop-blur-sm bg-white/50 dark:bg-slate-800/50">
-                    <Play className="h-5 w-5 mr-2" />
-                    Watch Demo
-                  </Button>
-                </motion.div>
+
               </motion.div>
 
               {/* Stats */}
               <motion.div 
-                className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto"
+                className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-3xl mx-auto"
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 1, duration: 0.8 }}
               >
-                {stats.map((stat, index) => (
+                {displayStats.map((stat, index) => (
                   <motion.div
                     key={stat.label}
                     className="text-center"
@@ -449,60 +440,7 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* Testimonials */}
-      <section id="testimonials" className="container mx-auto px-6 py-20">
-        <motion.div 
-          className="text-center mb-16"
-          initial={{ opacity: 0, y: 50 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-          viewport={{ once: true }}
-        >
-          <h2 className="text-4xl md:text-5xl font-bold mb-6">
-            <span className="bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-              Loved by Teams
-            </span>
-          </h2>
-          <p className="text-xl text-slate-600 dark:text-slate-300 max-w-3xl mx-auto">
-            See what our users have to say about their experience with AutoBrief.
-          </p>
-        </motion.div>
 
-        <div className="grid md:grid-cols-3 gap-8">
-          {testimonials.map((testimonial, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 50 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.2, duration: 0.8 }}
-              whileHover={{ y: -10 }}
-              viewport={{ once: true }}
-            >
-              <Card className="h-full backdrop-blur-lg bg-white/80 dark:bg-slate-800/80 border-white/20 shadow-xl">
-                <CardContent className="p-8">
-                  <div className="flex items-center mb-4">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="h-5 w-5 text-yellow-400 fill-current" />
-                    ))}
-                  </div>
-                  <p className="text-slate-600 dark:text-slate-300 mb-6 italic">
-                    "{testimonial.quote}"
-                  </p>
-                  <div className="flex items-center">
-                    <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center text-white font-bold mr-4">
-                      {testimonial.avatar}
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-slate-900 dark:text-white">{testimonial.author}</h4>
-                      <p className="text-slate-600 dark:text-slate-300 text-sm">{testimonial.role} at {testimonial.company}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
-        </div>
-      </section>
 
       {/* CTA Section */}
       <section className="bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-600 text-white py-20 relative overflow-hidden">
