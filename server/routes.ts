@@ -2370,6 +2370,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const { setupSpaHandler } = await import('./spa-handler');
     setupSpaHandler(app);
   }
+  
+  // Global error handlers (after SPA handler)
+  app.use(notFoundHandler);
+  app.use(errorHandler);
 
   const httpServer = createServer(app);
   return httpServer;

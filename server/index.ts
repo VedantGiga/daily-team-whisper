@@ -192,9 +192,8 @@ registerRoutes(app).then((server) => {
   process.exit(1);
 });
 
-// Global error handlers
-app.use(notFoundHandler);
-app.use(errorHandler);
+// Global error handlers (moved after SPA handler)
+// These will be set up after routes are registered
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {

@@ -174,7 +174,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error: any) {
       console.error('Google sign-in error:', error);
-      if (error.code === 'auth/unauthorized-domain') {
+      if (error.code === 'auth/popup-closed-by-user') {
+        // User cancelled, don't show error
+        return;
+      } else if (error.code === 'auth/unauthorized-domain') {
         toast.error('This domain is not authorized for Google sign-in. Please contact support.');
       } else if (error.code === 'auth/popup-blocked') {
         toast.error('Popup was blocked. Please allow popups and try again.');
