@@ -38,7 +38,7 @@ app.use('/api', apiRateLimiter);
 // CORS configuration
 const corsOptions: cors.CorsOptions = {
   origin: process.env.NODE_ENV === 'production' 
-    ? process.env.CORS_ORIGIN?.split(',') || false
+    ? ['https://daily-team-whisper.onrender.com', 'https://autobrief-e6e9b.firebaseapp.com']
     : true,
   credentials: true,
   optionsSuccessStatus: 200

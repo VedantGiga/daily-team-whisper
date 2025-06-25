@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Moon, Sun, User, Settings, Mail, LogOut, Menu, Home, FileText, Plug, Users, UserCircle, HelpCircle } from "lucide-react";
+import { Moon, Sun, User, Settings, Mail, LogOut, Menu, Home, FileText, Plug, Users, UserCircle, HelpCircle, Brain } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/contexts/ProfileContext";
 import { NetworkStatusBadge } from "@/components/NetworkStatus";
@@ -148,14 +148,24 @@ export const DashboardHeader = ({ onThemeToggle, isDarkMode }: DashboardHeaderPr
                           Integrations
                         </Button>
                       </Link>
-                      <Link to="/profile">
+                      <Link to="/profiles">
                         <Button 
                           variant="ghost" 
                           className="w-full justify-start h-12 text-base"
                           onClick={() => setIsMobileMenuOpen(false)}
                         >
                           <UserCircle className="mr-3 h-5 w-5" />
-                          Profile
+                          Service Profiles
+                        </Button>
+                      </Link>
+                      <Link to="/ai-insights">
+                        <Button 
+                          variant="ghost" 
+                          className="w-full justify-start h-12 text-base bg-gradient-to-r from-purple-500/10 to-blue-500/10 text-purple-600 dark:text-purple-400"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          <Brain className="mr-3 h-5 w-5" />
+                          ✨ AI Insights
                         </Button>
                       </Link>
                       <Link to="/team">
@@ -166,6 +176,16 @@ export const DashboardHeader = ({ onThemeToggle, isDarkMode }: DashboardHeaderPr
                         >
                           <Users className="mr-3 h-5 w-5" />
                           Team
+                        </Button>
+                      </Link>
+                      <Link to="/account">
+                        <Button 
+                          variant="ghost" 
+                          className="w-full justify-start h-12 text-base"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          <User className="mr-3 h-5 w-5" />
+                          Account
                         </Button>
                       </Link>
                       <Link to="/support">

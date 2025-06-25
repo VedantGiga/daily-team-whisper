@@ -56,4 +56,7 @@ services:
         value: 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
       - key: RESEND_API_KEY
         value: rre_ffqMVZGC_NKyHJ9QMU3jW9uA6r8TUDuGn
+      # CORS Configuration
+      - key: CORS_ORIGIN
+        value: https://daily-team-whisper.onrender.com,https://autobrief-e6e9b.firebaseapp.com
     healthCheckPath: /health
