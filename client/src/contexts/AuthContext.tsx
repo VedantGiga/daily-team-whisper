@@ -139,23 +139,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loginWithGoogle = async () => {
     try {
+      console.log('Starting Google sign-in...');
       const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({
-        prompt: 'select_account'
-      });
       
-      const { user } = await signInWithPopup(auth, provider);
-      await createUserProfile(user);
+      console.log('Opening popup...');
+      const result = await signInWithPopup(auth, provider);
+      console.log('Popup completed, user:', result.user);
+      
+      await createUserProfile(result.user);
       toast.success('Welcome!');
     } catch (error: any) {
-      console.error('Google sign-in error:', error);
-      if (error.code === 'auth/popup-closed-by-user') {
+      console.error('Google sign-in error details:', {
+        code: error.code,
+        message: error.message,
+        stack: error.stack
+      });
+      
+      if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+        console.log('User cancelled sign-in');
         return;
-      } else if (error.code === 'auth/cancelled-popup-request') {
-        return;
-      } else {
-        toast.error('Failed to sign in with Google. Please try again.');
       }
+      
+      toast.error(`Sign-in failed: ${error.message}`);
     }
   };
 
