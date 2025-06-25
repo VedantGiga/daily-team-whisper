@@ -83,21 +83,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    const checkRedirectResult = async () => {
-      try {
-        const { getRedirectResult } = await import('firebase/auth');
-        const result = await getRedirectResult(auth);
-        if (result?.user) {
-          await createUserProfile(result.user);
-          toast.success('Welcome!');
-        }
-      } catch (error) {
-        console.error('Redirect result error:', error);
-      }
-    };
-    
-    checkRedirectResult();
-    
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       try {
         if (user) {
@@ -159,32 +144,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         prompt: 'select_account'
       });
       
-      // Check if mobile device
-      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      
-      if (isMobile) {
-        // Use redirect for mobile
-        const { signInWithRedirect, getRedirectResult } = await import('firebase/auth');
-        await signInWithRedirect(auth, provider);
-      } else {
-        // Use popup for desktop
-        const { user } = await signInWithPopup(auth, provider);
-        await createUserProfile(user);
-        toast.success('Welcome!');
-      }
+      const { user } = await signInWithPopup(auth, provider);
+      await createUserProfile(user);
+      toast.success('Welcome!');
     } catch (error: any) {
       console.error('Google sign-in error:', error);
       if (error.code === 'auth/popup-closed-by-user') {
-        // User cancelled, don't show error
         return;
-      } else if (error.code === 'auth/unauthorized-domain') {
-        toast.error('This domain is not authorized for Google sign-in. Please contact support.');
-      } else if (error.code === 'auth/popup-blocked') {
-        toast.error('Popup was blocked. Please allow popups and try again.');
+      } else if (error.code === 'auth/cancelled-popup-request') {
+        return;
       } else {
         toast.error('Failed to sign in with Google. Please try again.');
       }
-      throw error;
     }
   };
 
