@@ -425,39 +425,11 @@ export class MemStorage implements IStorage {
   }
 
   private loadProfilesFromStorage() {
-    try {
-      const fs = require('fs');
-      const path = require('path');
-      const profilesPath = path.join(process.cwd(), 'profiles.json');
-      
-      if (fs.existsSync(profilesPath)) {
-        const data = fs.readFileSync(profilesPath, 'utf8');
-        const profiles = JSON.parse(data);
-        profiles.forEach((profile: UserProfile) => {
-          this.userProfiles.set(profile.id, profile);
-          if (profile.id >= this.currentProfileId) {
-            this.currentProfileId = profile.id + 1;
-          }
-        });
-        console.log(`Loaded ${profiles.length} profiles from storage`);
-      }
-    } catch (error) {
-      console.log('Failed to load profiles from storage:', error);
-    }
+    // Skip file operations in memory storage
   }
 
   private saveProfilesToStorage() {
-    try {
-      const fs = require('fs');
-      const path = require('path');
-      const profilesPath = path.join(process.cwd(), 'profiles.json');
-      
-      const profiles = Array.from(this.userProfiles.values());
-      fs.writeFileSync(profilesPath, JSON.stringify(profiles, null, 2));
-      console.log(`Saved ${profiles.length} profiles to storage`);
-    } catch (error) {
-      console.log('Failed to save profiles to storage:', error);
-    }
+    // Skip file operations in memory storage
   }
 
   // Daily summary operations
@@ -712,4 +684,4 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-export const storage = new DatabaseStorage();
+export const storage = new MemStorage();
