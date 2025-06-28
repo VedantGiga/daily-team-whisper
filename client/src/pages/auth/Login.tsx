@@ -19,8 +19,14 @@ const Login = () => {
   const [error, setError] = useState('');
   const [isDarkMode, setIsDarkMode] = useState(false);
 
-  const { login, loginWithGoogle } = useAuth();
+  const { login, loginWithGoogle, currentUser } = useAuth();
   const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (currentUser) {
+      setLocation('/dashboard');
+    }
+  }, [currentUser, setLocation]);
 
   useEffect(() => {
     const isDark = document.documentElement.classList.contains('dark');
@@ -60,13 +66,8 @@ const Login = () => {
       setError('');
       setLoading(true);
       await loginWithGoogle();
-      // Add a small delay to ensure auth state is updated
-      setTimeout(() => {
-        setLocation('/dashboard');
-      }, 100);
     } catch (error: any) {
       setError(error.message);
-    } finally {
       setLoading(false);
     }
   };

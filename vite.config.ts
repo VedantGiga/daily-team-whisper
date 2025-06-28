@@ -30,8 +30,7 @@ export default defineConfig({
       },
     },
     allowedHosts: [
-      "5940-2401-4900-8820-77ab-410d-5d13-c8fe-7929.ngrok-free.app",
-      "818c8593-89e8-4773-b845-5c49e9459543-00-2tu0fb8lculis.janeway.replit.dev",
+      "0928-2401-4900-8822-8957-89bd-f0b0-1a4e-56be.ngrok-free.app",
       "localhost",
     ],
   },
